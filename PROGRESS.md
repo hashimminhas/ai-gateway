@@ -149,8 +149,31 @@
   - Attaches `JSONFormatter` to both console and file (`logs/app.log`) handlers
   - Sets root logger level to INFO
 
-### Step 11 — Unit Tests
-- Tests for routes, orchestrator, circuit breaker
+### Step 11 — Unit Tests ✅
+- Created `tests/conftest.py`:
+  - Sets `DATABASE_URL=sqlite:///:memory:` before app imports
+  - `app` fixture creates Flask app with in-memory SQLite, creates/drops tables
+  - `client` fixture provides test client
+- Implemented `tests/test_routes.py` (6 tests):
+  - GET /health returns 200 with status + timestamp
+  - POST /ai/task with missing fields returns 400
+  - POST /ai/task with non-JSON body returns 400
+  - POST /ai/task with valid input returns 200 (mocked orchestrator)
+  - POST /ai/task returns 503 when all providers fail
+  - POST /ai/task with invoice_check includes decision output
+- Implemented `tests/test_orchestrator.py` (4 tests):
+  - All providers mocked with `unittest.mock.patch` — no real API calls
+  - Falls back to next provider when first fails
+  - Skips provider when circuit breaker is OPEN
+  - Result structure contains provider_used, result, confidence, latency_ms
+  - All providers fail returns error response
+- Implemented `tests/test_circuit_breaker.py` (6 tests):
+  - Starts in CLOSED state
+  - Opens after 3 consecutive failures
+  - Blocks calls when OPEN
+  - Transitions to HALF_OPEN after reset timeout expires
+  - Returns to CLOSED on success in HALF_OPEN
+  - Reopens on failure in HALF_OPEN
 
 ### Step 12 — Docker (Already scaffolded)
 - Verify Dockerfile and docker-compose work
