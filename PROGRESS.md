@@ -89,20 +89,65 @@
 - `record_failure()` — increments failures, transitions to OPEN when threshold reached
 - Logs all state transitions with provider name
 
-### Step 6 — Orchestrator (Core Logic)
-- Multi-provider routing with retry + fallback in `app/orchestrator.py`
+### Step 6 — Orchestrator (Core Logic) ✅
+- Implemented `Orchestrator` class in `app/orchestrator.py`
+- Initializes 3 providers (Gemini → OpenAI → HuggingFace) with one `CircuitBreaker` each
+- `execute(task, text, preferred_provider="auto")`:
+  - If specific provider requested, tries it first then falls back to others
+  - If "auto", iterates priority order: Gemini → OpenAI → HuggingFace
+  - For each provider: checks circuit breaker, skips if OPEN
+  - On failure: retries once (configurable via `MAX_RETRIES`)
+  - On second failure: records circuit breaker failure, moves to next provider
+  - On success: records circuit breaker success, returns result
+  - Tracks failover_count across the chain
+- Returns: `{provider_used, result, confidence, latency_ms, failover_count}`
+- If all providers fail: returns error response with details list
 
-### Step 7 — Structured Decision Output
-- Rule-based decision logic in `app/decision.py`
+### Step 7 — Structured Decision Output ✅
+- Implemented `make_decision(task, text, ai_result)` in `app/decision.py`
+- Only triggers for tasks: `invoice_check`, `document_review`
+- Scans combined text + AI result (case-insensitive) for keywords
+- FAIL: if suspicious keywords found (fraud, unauthorized, forged, fake, illegal)
+- PASS: if ≥2 required financial keywords found (amount, total, paid, due, invoice)
+- NEEDS_INFO: if fewer than 2 required keywords found
+- Returns `{decision, reasons, evidence}` — or `None` for non-decision tasks
 
-### Step 8 — API Routes
-- POST /ai/task, GET /health, GET /metrics, GET /history
+### Step 8 — API Routes ✅
+- Implemented Flask blueprint `api_bp` in `app/routes.py`
+- **POST /ai/task**:
+  - Accepts JSON `{task, text, provider}` (provider defaults to "auto")
+  - Validates: returns 400 if task or text missing, or body not JSON
+  - Calls `orchestrator.execute()` for multi-provider routing
+  - Saves request to `ai_requests` table (task, provider, latency, status, result summary, error)
+  - For `invoice_check`/`document_review` tasks, appends decision output via `make_decision()`
+  - Returns 200 with `{provider_used, result, confidence, latency_ms}` on success
+  - Returns 503 with error details if all providers fail
+- **GET /health**: returns `{status: "healthy", timestamp: ISO UTC}`
+- **GET /metrics**: returns Prometheus metrics via `generate_latest()`
+- **GET /history**: returns last 50 requests from DB as JSON array
 
-### Step 9 — Prometheus Metrics
-- Define and wire up metrics in `app/metrics.py`
+### Step 9 — Prometheus Metrics ✅
+- Defined 4 metrics in `app/metrics.py`:
+  - `ai_request_count` (Counter) — labels: task, provider, status
+  - `ai_error_count` (Counter) — labels: provider
+  - `ai_provider_latency_ms` (Histogram) — labels: provider, custom buckets [50–10000ms]
+  - `ai_failover_count` (Counter) — labels: from_provider, to_provider
+- Instrumented `app/orchestrator.py`:
+  - On success: records request_count (success), latency histogram
+  - On failure: records error_count, latency histogram
+  - On failover: records failover_count with from→to provider pair
+  - On all-fail: records request_count (error, provider=none)
+- `/metrics` endpoint already wired in routes.py via `generate_latest()`
 
-### Step 10 — Logging Configuration
-- Structured JSON logging in `app/logging_config.py`
+### Step 10 — Logging Configuration ✅
+- Implemented `JSONFormatter` class in `app/logging_config.py`
+  - Each log entry is a JSON object with: timestamp (ISO UTC), level, logger, message
+  - Optional fields included when present: provider, latency_ms, status, user_id, request_id
+  - Exception tracebacks included when applicable
+- `setup_logging(app)` function:
+  - Creates `logs/` directory if missing
+  - Attaches `JSONFormatter` to both console and file (`logs/app.log`) handlers
+  - Sets root logger level to INFO
 
 ### Step 11 — Unit Tests
 - Tests for routes, orchestrator, circuit breaker
