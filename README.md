@@ -45,7 +45,7 @@
    │    │    │
    ▼    ▼    ▼
 ┌──────┐ ┌──────┐ ┌─────────────┐
-│Gemini│ │OpenAI│ │ HuggingFace │
+│Gemini│ │Claude│ │ HuggingFace │
 │(pri 1)│ │(pri 2)│ │  (pri 3)    │
 └──────┘ └──────┘ └─────────────┘
 ```
@@ -63,7 +63,7 @@
 | Metrics | `app/metrics.py` | Prometheus counters and histograms |
 | Logging | `app/logging_config.py` | Structured JSON logging to console + file |
 | Models | `app/models.py` | SQLAlchemy model for request history |
-| Providers | `app/providers/` | Gemini, OpenAI, HuggingFace API integrations |
+| Providers | `app/providers/` | Gemini, Claude, HuggingFace API integrations |
 
 ---
 
@@ -73,11 +73,11 @@ When a request is received with `"provider": "auto"` (default), the orchestrator
 
 ```
 1. Gemini   (confidence: 0.85)  ──fail──▶ retry once ──fail──▶
-2. OpenAI   (confidence: 0.90)  ──fail──▶ retry once ──fail──▶
+2. Claude   (confidence: 0.90)  ──fail──▶ retry once ──fail──▶
 3. HuggingFace (confidence: 0.75) ──fail──▶ retry once ──fail──▶ Error 503
 ```
 
-- If a specific provider is requested (e.g. `"provider": "openai"`), it tries that one first, then falls back to the others in order.
+- If a specific provider is requested (e.g. `"provider": "claude"`), it tries that one first, then falls back to the others in order.
 - Each provider's circuit breaker is checked before attempting a call — if a provider has failed 3+ times recently, it is skipped entirely.
 - The `provider_used` field in the response tells you which provider actually handled the request.
 
@@ -170,7 +170,7 @@ Submit a task to the AI orchestration service.
 |-------|------|----------|-------------|
 | task | string | Yes | Task type (e.g. `summarize`, `invoice_check`, `document_review`) |
 | text | string | Yes | Input text to process |
-| provider | string | No | `auto` (default), `gemini`, `openai`, or `huggingface` |
+| provider | string | No | `auto` (default), `gemini`, `claude`, or `huggingface` |
 
 **Response (200):**
 
@@ -187,7 +187,7 @@ Submit a task to the AI orchestration service.
 
 ```json
 {
-  "provider_used": "openai",
+  "provider_used": "claude",
   "result": "...",
   "confidence": 0.90,
   "latency_ms": 300,
@@ -327,7 +327,7 @@ Lint (flake8) → Test (pytest + PostgreSQL) → Build (Docker image)
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | Yes | `postgresql://localhost/aigateway` | PostgreSQL connection string |
-| `OPENAI_API_KEY` | No | `""` | OpenAI API key |
+| `CLAUDE_API_KEY` | No | `""` | Anthropic Claude API key |
 | `GEMINI_API_KEY` | No | `""` | Google Gemini API key |
 | `HF_API_KEY` | No | `""` | HuggingFace Inference API token |
 | `API_KEY` | No | `""` | Optional auth key for API protection |

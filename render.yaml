@@ -9,7 +9,7 @@ services:
         fromDatabase:
           name: ai-gateway-db
           property: connectionString
-      - key: OPENAI_API_KEY
+      - key: CLAUDE_API_KEY
         sync: false
       - key: GEMINI_API_KEY
         sync: false

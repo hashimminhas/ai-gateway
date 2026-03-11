@@ -3,7 +3,7 @@ import os
 
 class Config:
     DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://localhost/aigateway')
-    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+    CLAUDE_API_KEY = os.getenv('CLAUDE_API_KEY', '')
     GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
     HF_API_KEY = os.getenv('HF_API_KEY', '')
     TIMEOUT_SECONDS = int(os.getenv('TIMEOUT_SECONDS', '10'))

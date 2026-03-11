@@ -7,33 +7,34 @@ from app.providers.base import AIProvider, ProviderError
 logger = logging.getLogger(__name__)
 
 
-class HuggingFaceProvider(AIProvider):
-    name = "huggingface"
+class ClaudeProvider(AIProvider):
+    name = "claude"
 
     def __init__(self):
-        self.api_key = Config.HF_API_KEY
-        self.base_url = (
-            "https://api-inference.huggingface.co/models"
-            "/gpt2"
-        )
+        self.api_key = Config.CLAUDE_API_KEY
+        self.base_url = "https://api.anthropic.com/v1/messages"
         self.timeout = Config.TIMEOUT_SECONDS
 
     def call(self, task: str, text: str) -> dict:
-        logger.info("Calling HuggingFace provider for task: %s", task)
+        logger.info("Calling Claude provider for task: %s", task)
 
         if not self.api_key:
-            raise ProviderError(self.name, "HF_API_KEY not configured")
+            raise ProviderError(self.name, "CLAUDE_API_KEY not configured")
 
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "x-api-key": self.api_key,
+            "anthropic-version": "2023-06-01",
             "Content-Type": "application/json",
         }
         payload = {
-            "inputs": f"Task: {task}\n\n{text}",
-            "parameters": {
-                "max_length": 100,
-                "temperature": 0.7
-            }
+            "model": "claude-3-haiku-20240307",
+            "max_tokens": 1024,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": f"Task: {task}\n\n{text}"
+                }
+            ]
         }
 
         try:
@@ -43,12 +44,9 @@ class HuggingFaceProvider(AIProvider):
             )
             resp.raise_for_status()
             data = resp.json()
-            if isinstance(data, list) and len(data) > 0:
-                result_text = data[0].get("generated_text", str(data[0]))
-            else:
-                result_text = str(data)
-            logger.info("HuggingFace call succeeded")
-            return {"result": result_text, "confidence": 0.75}
+            result_text = data["content"][0]["text"]
+            logger.info("Claude call succeeded")
+            return {"result": result_text, "confidence": 0.90}
         except requests.Timeout:
             raise ProviderError(self.name, "Request timed out")
         except requests.RequestException as e:

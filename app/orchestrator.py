@@ -4,21 +4,21 @@ import logging
 from app.config import Config
 from app.circuit_breaker import CircuitBreaker
 from app.providers.gemini_provider import GeminiProvider
-from app.providers.openai_provider import OpenAIProvider
+from app.providers.claude_provider import ClaudeProvider
 from app.providers.huggingface_provider import HuggingFaceProvider
 from app.providers.base import ProviderError
 from app.metrics import request_count, error_count, provider_latency, failover_count as failover_metric
 
 logger = logging.getLogger(__name__)
 
-PROVIDER_ORDER = ["gemini", "openai", "huggingface"]
+PROVIDER_ORDER = ["gemini", "claude", "huggingface"]
 
 
 class Orchestrator:
     def __init__(self):
         self.providers = {
             "gemini": GeminiProvider(),
-            "openai": OpenAIProvider(),
+            "claude": ClaudeProvider(),
             "huggingface": HuggingFaceProvider(),
         }
         self.breakers = {

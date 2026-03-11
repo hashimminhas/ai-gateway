@@ -5,18 +5,18 @@ from app.circuit_breaker import STATE_OPEN
 
 
 @patch('app.orchestrator.HuggingFaceProvider')
-@patch('app.orchestrator.OpenAIProvider')
+@patch('app.orchestrator.ClaudeProvider')
 @patch('app.orchestrator.GeminiProvider')
-def test_fallback_on_failure(mock_gemini_cls, mock_openai_cls, mock_hf_cls):
+def test_fallback_on_failure(mock_gemini_cls, mock_claude_cls, mock_hf_cls):
     mock_gemini = MagicMock()
     mock_gemini.name = 'gemini'
     mock_gemini.call.side_effect = ProviderError('gemini', 'timeout')
     mock_gemini_cls.return_value = mock_gemini
 
-    mock_openai = MagicMock()
-    mock_openai.name = 'openai'
-    mock_openai.call.return_value = {"result": "done", "confidence": 0.90}
-    mock_openai_cls.return_value = mock_openai
+    mock_claude = MagicMock()
+    mock_claude.name = 'claude'
+    mock_claude.call.return_value = {"result": "done", "confidence": 0.90}
+    mock_claude_cls.return_value = mock_claude
 
     mock_hf = MagicMock()
     mock_hf.name = 'huggingface'
@@ -25,24 +25,24 @@ def test_fallback_on_failure(mock_gemini_cls, mock_openai_cls, mock_hf_cls):
     orch = Orchestrator()
     result = orch.execute("summarize", "test text")
 
-    assert result["provider_used"] == "openai"
+    assert result["provider_used"] == "claude"
     assert result["result"] == "done"
     assert result["confidence"] == 0.90
     assert "latency_ms" in result
 
 
 @patch('app.orchestrator.HuggingFaceProvider')
-@patch('app.orchestrator.OpenAIProvider')
+@patch('app.orchestrator.ClaudeProvider')
 @patch('app.orchestrator.GeminiProvider')
-def test_skip_open_circuit(mock_gemini_cls, mock_openai_cls, mock_hf_cls):
+def test_skip_open_circuit(mock_gemini_cls, mock_claude_cls, mock_hf_cls):
     mock_gemini = MagicMock()
     mock_gemini.name = 'gemini'
     mock_gemini_cls.return_value = mock_gemini
 
-    mock_openai = MagicMock()
-    mock_openai.name = 'openai'
-    mock_openai.call.return_value = {"result": "ok", "confidence": 0.90}
-    mock_openai_cls.return_value = mock_openai
+    mock_claude = MagicMock()
+    mock_claude.name = 'claude'
+    mock_claude.call.return_value = {"result": "ok", "confidence": 0.90}
+    mock_claude_cls.return_value = mock_claude
 
     mock_hf = MagicMock()
     mock_hf.name = 'huggingface'
@@ -55,22 +55,22 @@ def test_skip_open_circuit(mock_gemini_cls, mock_openai_cls, mock_hf_cls):
 
     result = orch.execute("summarize", "test text")
 
-    assert result["provider_used"] == "openai"
+    assert result["provider_used"] == "claude"
     mock_gemini.call.assert_not_called()
 
 
 @patch('app.orchestrator.HuggingFaceProvider')
-@patch('app.orchestrator.OpenAIProvider')
+@patch('app.orchestrator.ClaudeProvider')
 @patch('app.orchestrator.GeminiProvider')
-def test_result_structure(mock_gemini_cls, mock_openai_cls, mock_hf_cls):
+def test_result_structure(mock_gemini_cls, mock_claude_cls, mock_hf_cls):
     mock_gemini = MagicMock()
     mock_gemini.name = 'gemini'
     mock_gemini.call.return_value = {"result": "summary", "confidence": 0.85}
     mock_gemini_cls.return_value = mock_gemini
 
-    mock_openai = MagicMock()
-    mock_openai.name = 'openai'
-    mock_openai_cls.return_value = mock_openai
+    mock_claude = MagicMock()
+    mock_claude.name = 'claude'
+    mock_claude_cls.return_value = mock_claude
 
     mock_hf = MagicMock()
     mock_hf.name = 'huggingface'
@@ -87,11 +87,11 @@ def test_result_structure(mock_gemini_cls, mock_openai_cls, mock_hf_cls):
 
 
 @patch('app.orchestrator.HuggingFaceProvider')
-@patch('app.orchestrator.OpenAIProvider')
+@patch('app.orchestrator.ClaudeProvider')
 @patch('app.orchestrator.GeminiProvider')
-def test_all_providers_fail(mock_gemini_cls, mock_openai_cls, mock_hf_cls):
+def test_all_providers_fail(mock_gemini_cls, mock_claude_cls, mock_hf_cls):
     for mock_cls, name in [(mock_gemini_cls, 'gemini'),
-                           (mock_openai_cls, 'openai'),
+                           (mock_claude_cls, 'claude'),
                            (mock_hf_cls, 'huggingface')]:
         mock_provider = MagicMock()
         mock_provider.name = name

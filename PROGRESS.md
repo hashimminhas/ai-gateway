@@ -221,10 +221,20 @@
 - Also added tech stack table and license reference
 
 ### Post-Completion — Provider & CI Fixes ✅
-- **Gemini provider**: Updated model from `gemini-pro` → `gemini-2.0-flash` (old model returned 404)
-- **HuggingFace provider**: Changed model from `facebook/bart-large-cnn` → `google/flan-t5-base` (old model returned 410); changed response field from `summary_text` → `generated_text`
+- **Gemini provider**: Updated model from `gemini-pro` → `gemini-2.0-flash` → `gemini-1.5-flash` (stability issues with 2.0)
+- **HuggingFace provider**: Changed model from `facebook/bart-large-cnn` → `google/flan-t5-base` → `gpt2` (previous models returned 410); changed response field from `summary_text` → `generated_text`
+- **OpenAI → Claude replacement**: Replaced OpenAI provider with Claude (Anthropic) API - uses `claude-3-haiku-20240307` model, environment variable changed to `CLAUDE_API_KEY`
 - **Indentation fixes**: Normalized indentation in both provider files (mangled by GitHub web editor)
-- **CI build step**: Fixed Docker build tag — builds as `ai-gateway:latest` first, conditionally tags/pushes to Docker Hub only when `DOCKERHUB_USERNAME` secret is set
+- **CI build step**: Fixed Docker build tag — builds as `ai-gateway:latest` first, conditionally tags/pushes to Docker Hub only when `DOCKERHUB_USERNAME` secret is set; reverted to original working format
+
+**Live Testing Results (2026-03-11):**
+- Service health: ✅ Working
+- Orchestrator & failover: ✅ Working (gemini→claude→huggingface chain executing)
+- Database & metrics: ✅ Working (requests logged, Prometheus counters active)
+- Provider status:
+  - Gemini: 429 rate limit (free tier quota issue)
+  - Claude: Replacing OpenAI (new API key needed in Render)
+  - HuggingFace: 410 gone error (model endpoint issue) → switched to `gpt2`
 
 ---
 
