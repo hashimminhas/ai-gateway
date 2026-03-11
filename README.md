@@ -1,24 +1,358 @@
 # AI-Gateway — Autonomous AI Orchestration Platform
 
-> Resilient multi-provider AI orchestration service with fallback, circuit breaker, and observability.
+> Resilient multi-provider AI orchestration service with automatic fallback, circuit breaker, retry logic, and Prometheus observability. Built with Flask, PostgreSQL, and Docker.
 
-## Quick Start
+**Live API:** [https://ai-gateway-api-9sm2.onrender.com](https://ai-gateway-api-9sm2.onrender.com)
+
+---
+
+## Table of Contents
+
+1. [Architecture Overview](#architecture-overview)
+2. [Provider Routing Logic](#provider-routing-logic)
+3. [Reliability Features](#reliability-features)
+4. [Observability](#observability)
+5. [API Documentation](#api-documentation)
+6. [How to Run Locally](#how-to-run-locally)
+7. [How to Run Tests](#how-to-run-tests)
+8. [Deployment Process](#deployment-process)
+9. [Environment Variables](#environment-variables)
+
+---
+
+## Architecture Overview
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                      Client / User                       │
+└────────────────────────┬─────────────────────────────────┘
+                         │  POST /ai/task
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│                    Flask API (routes.py)                  │
+│         /ai/task  /health  /metrics  /history             │
+└────────┬──────────────┬──────────────┬───────────────────┘
+         │              │              │
+         ▼              ▼              ▼
+┌────────────┐  ┌──────────────┐  ┌────────────────┐
+│ Orchestrator│  │  Prometheus  │  │   PostgreSQL   │
+│             │  │  Metrics     │  │   (ai_requests │
+│ ┌─────────┐│  │              │  │    table)      │
+│ │Circuit  ││  └──────────────┘  └────────────────┘
+│ │Breakers ││
+│ └─────────┘│
+└──┬────┬────┬─────────────────────────────────────────────┘
+   │    │    │
+   ▼    ▼    ▼
+┌──────┐ ┌──────┐ ┌─────────────┐
+│Gemini│ │OpenAI│ │ HuggingFace │
+│(pri 1)│ │(pri 2)│ │  (pri 3)    │
+└──────┘ └──────┘ └─────────────┘
+```
+
+**Components:**
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| App Factory | `app/__init__.py` | Flask app creation, DB init, blueprint registration |
+| Config | `app/config.py` | Environment-based configuration |
+| Routes | `app/routes.py` | REST API endpoints |
+| Orchestrator | `app/orchestrator.py` | Multi-provider routing with retry + fallback |
+| Circuit Breaker | `app/circuit_breaker.py` | Per-provider failure tracking and blocking |
+| Decision Engine | `app/decision.py` | Rule-based structured output for invoice/document tasks |
+| Metrics | `app/metrics.py` | Prometheus counters and histograms |
+| Logging | `app/logging_config.py` | Structured JSON logging to console + file |
+| Models | `app/models.py` | SQLAlchemy model for request history |
+| Providers | `app/providers/` | Gemini, OpenAI, HuggingFace API integrations |
+
+---
+
+## Provider Routing Logic
+
+When a request is received with `"provider": "auto"` (default), the orchestrator tries providers in priority order:
+
+```
+1. Gemini   (confidence: 0.85)  ──fail──▶ retry once ──fail──▶
+2. OpenAI   (confidence: 0.90)  ──fail──▶ retry once ──fail──▶
+3. HuggingFace (confidence: 0.75) ──fail──▶ retry once ──fail──▶ Error 503
+```
+
+- If a specific provider is requested (e.g. `"provider": "openai"`), it tries that one first, then falls back to the others in order.
+- Each provider's circuit breaker is checked before attempting a call — if a provider has failed 3+ times recently, it is skipped entirely.
+- The `provider_used` field in the response tells you which provider actually handled the request.
+
+---
+
+## Reliability Features
+
+### Retry Mechanism
+- On failure, each provider is retried **once** before moving to the next (configurable via `MAX_RETRIES`).
+
+### Timeout Handling
+- Every API call has a **10-second timeout** (configurable via `TIMEOUT_SECONDS`).
+- If a provider doesn't respond in time, it's treated as a failure.
+
+### Circuit Breaker
+
+Each provider has its own circuit breaker with three states:
+
+```
+CLOSED ──(3 failures)──▶ OPEN ──(60s timeout)──▶ HALF_OPEN ──(success)──▶ CLOSED
+                                                      │
+                                                  (failure)
+                                                      │
+                                                      ▼
+                                                    OPEN
+```
+
+| Parameter | Default | Env Var |
+|-----------|---------|---------|
+| Failure threshold | 3 | `CIRCUIT_BREAKER_THRESHOLD` |
+| Reset timeout | 60s | `CIRCUIT_BREAKER_RESET_TIMEOUT` |
+
+**Behavior:**
+- **CLOSED** — normal operation, requests go through
+- **OPEN** — provider is blocked, requests skip to next provider
+- **HALF_OPEN** — after timeout expires, one test request is allowed; success → CLOSED, failure → OPEN
+
+---
+
+## Observability
+
+### Prometheus Metrics
+
+Available at `GET /metrics` in Prometheus exposition format.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ai_request_count` | Counter | task, provider, status | Total requests processed |
+| `ai_error_count` | Counter | provider | Total provider errors |
+| `ai_provider_latency_ms` | Histogram | provider | Provider response latency (ms) |
+| `ai_failover_count` | Counter | from_provider, to_provider | How often fallbacks occur |
+
+### Structured Logging
+
+Every log entry is a JSON object with:
+
+```json
+{
+  "timestamp": "2026-03-11T12:00:00+00:00",
+  "level": "INFO",
+  "logger": "app.orchestrator",
+  "message": "Provider gemini succeeded in 230ms",
+  "provider": "gemini",
+  "latency_ms": 230,
+  "status": "success"
+}
+```
+
+Logs are written to both **console** and **`logs/app.log`**.
+
+---
+
+## API Documentation
+
+### POST /ai/task
+
+Submit a task to the AI orchestration service.
+
+**Request:**
+
+```json
+{
+  "task": "summarize",
+  "text": "Invoice for services rendered. Total amount: $5,000. Payment due: March 30, 2026.",
+  "provider": "auto"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| task | string | Yes | Task type (e.g. `summarize`, `invoice_check`, `document_review`) |
+| text | string | Yes | Input text to process |
+| provider | string | No | `auto` (default), `gemini`, `openai`, or `huggingface` |
+
+**Response (200):**
+
+```json
+{
+  "provider_used": "gemini",
+  "result": "This invoice is for $5,000 in services, with payment due March 30, 2026.",
+  "confidence": 0.85,
+  "latency_ms": 450
+}
+```
+
+**Response with Decision (for `invoice_check` or `document_review` tasks):**
+
+```json
+{
+  "provider_used": "openai",
+  "result": "...",
+  "confidence": 0.90,
+  "latency_ms": 300,
+  "decision": {
+    "decision": "PASS",
+    "reasons": ["Key financial fields present in document"],
+    "evidence": ["amount", "total", "due"]
+  }
+}
+```
+
+Decision values: `PASS` | `FAIL` | `NEEDS_INFO`
+
+**Error Responses:**
+
+| Code | Condition |
+|------|-----------|
+| 400 | Missing `task` or `text`, or body is not JSON |
+| 503 | All providers failed |
+
+---
+
+### GET /health
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-03-11T12:00:00+00:00"
+}
+```
+
+### GET /metrics
+
+Returns Prometheus-format metrics (text/plain).
+
+### GET /history
+
+Returns the last 50 requests from the database:
+
+```json
+[
+  {
+    "id": "uuid",
+    "timestamp": "2026-03-11T12:00:00",
+    "task": "summarize",
+    "provider": "gemini",
+    "latency_ms": 450,
+    "status": "success",
+    "result_summary": "...",
+    "user_id": "anonymous",
+    "error_message": null
+  }
+]
+```
+
+---
+
+## How to Run Locally
+
+### Prerequisites
+- Docker and Docker Compose installed
+
+### Start the Service
 
 ```bash
+# Clone the repo
+git clone https://github.com/hashimminhas/ai-gateway.git
+cd ai-gateway
+
+# Create .env file with your API keys
+cp .env.example .env
+# Edit .env and add your keys
+
+# Start everything
 docker-compose up --build
 ```
 
-API available at `http://localhost:5000`
+The API will be available at `http://localhost:5000`.
 
-## API Endpoints
+### Test it
 
-| Method | Path        | Description              |
-|--------|-------------|--------------------------|
-| POST   | /ai/task    | Submit an AI task        |
-| GET    | /health     | Health check             |
-| GET    | /metrics    | Prometheus metrics       |
-| GET    | /history    | Recent request history   |
+```bash
+# Health check
+curl http://localhost:5000/health
 
-## Architecture
+# Submit a task
+curl -X POST http://localhost:5000/ai/task \
+  -H "Content-Type: application/json" \
+  -d '{"task": "summarize", "text": "Your text here"}'
+```
 
-*Details to be added as features are implemented.*
+---
+
+## How to Run Tests
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run all tests
+pytest tests/ -v
+```
+
+Tests use **SQLite in-memory** and **mocked provider calls** — no real API keys or PostgreSQL needed.
+
+**Test coverage:**
+- `test_routes.py` — API endpoint validation (6 tests)
+- `test_orchestrator.py` — Fallback, circuit breaker, error handling (4 tests)
+- `test_circuit_breaker.py` — State transitions CLOSED → OPEN → HALF_OPEN → CLOSED (6 tests)
+
+---
+
+## Deployment Process
+
+### One-Click Deploy to Render
+
+1. Push code to GitHub
+2. Go to [render.com](https://render.com) → **New** → **Blueprint**
+3. Connect your GitHub repo (`hashimminhas/ai-gateway`)
+4. `render.yaml` is auto-detected — click **Deploy**
+5. Set API keys in the environment variables form
+6. Wait for build to complete (~2 minutes)
+7. Your live URL: `https://ai-gateway-api-9sm2.onrender.com`
+
+### CI/CD Pipeline (GitHub Actions)
+
+Every push to `main` triggers:
+
+```
+Lint (flake8) → Test (pytest + PostgreSQL) → Build (Docker image)
+```
+
+---
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATABASE_URL` | Yes | `postgresql://localhost/aigateway` | PostgreSQL connection string |
+| `OPENAI_API_KEY` | No | `""` | OpenAI API key |
+| `GEMINI_API_KEY` | No | `""` | Google Gemini API key |
+| `HF_API_KEY` | No | `""` | HuggingFace Inference API token |
+| `API_KEY` | No | `""` | Optional auth key for API protection |
+| `TIMEOUT_SECONDS` | No | `10` | Provider call timeout |
+| `MAX_RETRIES` | No | `1` | Retries per provider before fallback |
+| `CIRCUIT_BREAKER_THRESHOLD` | No | `3` | Failures before circuit opens |
+| `CIRCUIT_BREAKER_RESET_TIMEOUT` | No | `60` | Seconds before circuit tries again |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend | Flask 3.1 (Python 3.11) |
+| Database | PostgreSQL 15 |
+| ORM | Flask-SQLAlchemy |
+| Monitoring | prometheus-client |
+| Containerization | Docker + Docker Compose |
+| CI/CD | GitHub Actions |
+| Hosting | Render (free tier) |
+| HTTP Server | Gunicorn |
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE) for details.
