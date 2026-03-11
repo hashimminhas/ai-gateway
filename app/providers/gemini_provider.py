@@ -14,7 +14,7 @@ class GeminiProvider(AIProvider):
         self.api_key = Config.GEMINI_API_KEY
         self.base_url = (
             "https://generativelanguage.googleapis.com/v1beta"
-            "/models/gemini-1.5-flash:generateContent"
+            "/models/gemini-pro:generateContent"
         )
         self.timeout = Config.TIMEOUT_SECONDS
 

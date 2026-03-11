@@ -14,7 +14,7 @@ class HuggingFaceProvider(AIProvider):
         self.api_key = Config.HF_API_KEY
         self.base_url = (
             "https://api-inference.huggingface.co/models"
-            "/gpt2"
+            "/distilgpt2"
         )
         self.timeout = Config.TIMEOUT_SECONDS
 
