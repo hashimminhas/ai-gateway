@@ -13,9 +13,9 @@ class HuggingFaceProvider(AIProvider):
     def __init__(self):
         self.api_key = Config.HF_API_KEY
         self.base_url = (
-            "https://api-inference.huggingface.co/models"
-            "/facebook/bart-large-mnli"
-        )
+           "https://api-inference.huggingface.co/models"
+           "/google/flan-t5-base"
+ )
         self.timeout = Config.TIMEOUT_SECONDS
 
     def call(self, task: str, text: str) -> dict:
@@ -41,9 +41,9 @@ class HuggingFaceProvider(AIProvider):
             resp.raise_for_status()
             data = resp.json()
             if isinstance(data, list) and len(data) > 0:
-                result_text = data[0].get("summary_text", str(data[0]))
+               result_text = data[0].get("generated_text", str(data[0]))  # ← changed
             else:
-                result_text = str(data)
+               result_text = str(data)
             logger.info("HuggingFace call succeeded")
             return {"result": result_text, "confidence": 0.75}
         except requests.Timeout:

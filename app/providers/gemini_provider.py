@@ -13,9 +13,9 @@ class GeminiProvider(AIProvider):
     def __init__(self):
         self.api_key = Config.GEMINI_API_KEY
         self.base_url = (
-            "https://generativelanguage.googleapis.com/v1beta"
-            "/models/gemini-1.5-flash:generateContent"
-        )
+         "https://generativelanguage.googleapis.com/v1beta"
+         "/models/gemini-2.0-flash:generateContent"
+     )
         self.timeout = Config.TIMEOUT_SECONDS
 
     def call(self, task: str, text: str) -> dict:
