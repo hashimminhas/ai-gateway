@@ -1,9 +1,11 @@
+import functools
 from datetime import datetime, timezone
 
 from flask import Blueprint, request, jsonify
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
-from app import db
+from app import db, limiter
+from app.config import Config
 from app.models import AIRequest
 from app.orchestrator import Orchestrator
 from app.decision import make_decision
@@ -12,7 +14,22 @@ api_bp = Blueprint('api', __name__)
 orchestrator = Orchestrator()
 
 
+def require_api_key(f):
+    """Decorator to enforce API key authentication."""
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        if not Config.API_KEY:
+            return f(*args, **kwargs)
+        key = request.headers.get('X-API-Key', '')
+        if key != Config.API_KEY:
+            return jsonify({"error": "Invalid or missing API key"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
 @api_bp.route('/ai/task', methods=['POST'])
+@limiter.limit("30/minute")
+@require_api_key
 def ai_task():
     data = request.get_json(silent=True)
     if not data:
@@ -79,6 +96,7 @@ def metrics():
 
 
 @api_bp.route('/history', methods=['GET'])
+@require_api_key
 def history():
     records = (
         AIRequest.query

@@ -338,6 +338,38 @@ Lint (flake8) → Test (pytest + PostgreSQL) → Build (Docker image)
 
 ---
 
+## Security & Rate Limiting
+
+### API Key Authentication
+
+Protected endpoints (`POST /ai/task`, `GET /history`) require an `X-API-Key` header when the `API_KEY` environment variable is set.
+
+```bash
+curl -X POST https://ai-gateway-api-9sm2.onrender.com/ai/task \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-secret-key" \
+  -d '{"task": "summarize", "text": "Your text here"}'
+```
+
+If `API_KEY` is not set, authentication is disabled (open access).
+
+### Rate Limiting
+
+The `/ai/task` endpoint is rate-limited to **30 requests per minute** per IP address using `flask-limiter`. Exceeding the limit returns `429 Too Many Requests`.
+
+---
+
+## Horizontal Scaling
+
+The service is designed for horizontal scaling:
+
+- **Stateless application tier** — no in-memory session state; all request data is stored in PostgreSQL
+- **Gunicorn workers** — the Docker image runs gunicorn with multiple workers (`-w 2`) for concurrent request handling; increase workers based on available CPU cores
+- **Database-backed persistence** — circuit breaker state resets on restart, but request history is durable in PostgreSQL
+- **Container-ready** — deploy multiple replicas behind a load balancer (e.g. Render, Kubernetes, ECS) with the same `DATABASE_URL`
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
