@@ -191,8 +191,19 @@
 - Pipeline order: lint → test → build (each depends on previous)
 - DB name uses `aigateway_test` (matches project naming)
 
-### Step 14 — Deployment
-- Deploy to Render / Railway / Fly.io
+### Step 14 — Deployment ✅
+- Created `render.yaml` (Render Blueprint):
+  - Web service `ai-gateway-api`: Docker runtime, free plan, health check at `/health`
+  - Environment variables: DATABASE_URL (linked from DB), OPENAI_API_KEY, GEMINI_API_KEY, HF_API_KEY, API_KEY
+  - PostgreSQL database `ai-gateway-db`: free plan, db name `aigateway`
+- **Manual Deployment Steps:**
+  1. Push code to GitHub
+  2. Go to [render.com](https://render.com) → **New** → **Blueprint** → connect your repo
+  3. `render.yaml` is auto-detected — click **Deploy**
+  4. After deploy succeeds, go to **Settings** → **Deploy Hook** → copy the URL
+  5. Add that URL as a GitHub secret named `RENDER_DEPLOY_HOOK_URL`
+  6. Every push to main now triggers a redeploy automatically
+  7. Note the public URL from Render dashboard (format: `https://ai-gateway-api.onrender.com`)
 
 ### Step 15 — README
 - Final comprehensive documentation
