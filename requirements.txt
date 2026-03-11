@@ -1,0 +1,9 @@
+flask==3.1.0
+flask-sqlalchemy==3.1.1
+psycopg2-binary==2.9.10
+prometheus-client==0.21.1
+requests==2.32.3
+python-dotenv==1.0.1
+gunicorn==23.0.0
+pytest==8.3.4
+flake8==7.1.1
