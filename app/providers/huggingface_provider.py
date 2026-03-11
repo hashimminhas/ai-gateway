@@ -14,7 +14,7 @@ class HuggingFaceProvider(AIProvider):
         self.api_key = Config.HF_API_KEY
         self.base_url = (
             "https://api-inference.huggingface.co/models"
-            "/facebook/bart-large-cnn"
+            "/facebook/bart-large-mnli"
         )
         self.timeout = Config.TIMEOUT_SECONDS
 
