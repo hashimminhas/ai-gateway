@@ -175,11 +175,21 @@
   - Returns to CLOSED on success in HALF_OPEN
   - Reopens on failure in HALF_OPEN
 
-### Step 12 — Docker (Already scaffolded)
-- Verify Dockerfile and docker-compose work
+### Step 12 — Docker ✅
+- `Dockerfile`: python:3.11-slim, installs deps, copies app, exposes 5000, runs gunicorn with 2 workers
+- `docker-compose.yml`:
+  - Service `app`: builds from Dockerfile, port 5000, env vars (DATABASE_URL, OPENAI_API_KEY, GEMINI_API_KEY, HF_API_KEY)
+  - Service `db`: postgres:15, port 5432, persistent volume `pgdata`
+  - Fixed env var name: `HF_API_KEY` (matches config.py)
+  - Added `aigateway-net` bridge network for both services
 
-### Step 13 — CI/CD Pipeline (Already scaffolded)
-- Verify GitHub Actions workflow
+### Step 13 — CI/CD Pipeline ✅
+- Updated `.github/workflows/ci.yml` with 3 jobs:
+  - **lint**: checkout → Python 3.11 → flake8 on app/ and tests/
+  - **test**: checkout → Python 3.11 → PostgreSQL 15 service container (with health check) → pip install deps → pytest with `DATABASE_URL` pointing to service container
+  - **build**: only on push to main → builds Docker image → logs in to Docker Hub via secrets → pushes image
+- Pipeline order: lint → test → build (each depends on previous)
+- DB name uses `aigateway_test` (matches project naming)
 
 ### Step 14 — Deployment
 - Deploy to Render / Railway / Fly.io

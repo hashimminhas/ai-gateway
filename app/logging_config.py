@@ -13,7 +13,7 @@ class JSONFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
         for field in ("provider", "latency_ms", "status",
-                       "user_id", "request_id"):
+                      "user_id", "request_id"):
             value = getattr(record, field, None)
             if value is not None:
                 entry[field] = value

@@ -1,5 +1,4 @@
 import time
-from unittest.mock import patch
 
 from app.circuit_breaker import (
     CircuitBreaker, STATE_CLOSED, STATE_OPEN, STATE_HALF_OPEN,
