@@ -23,7 +23,7 @@ class GeminiProvider(AIProvider):
 
         if not self.api_key:
             raise ProviderError(self.name, "GEMINI_API_KEY not configured")
-        
+
         # Debug: Log key presence (DO NOT log full key)
         logger.info(
             "Gemini API key present: %s, length: %d",
@@ -44,7 +44,7 @@ class GeminiProvider(AIProvider):
 
         try:
             resp = requests.post(url, json=payload, timeout=self.timeout)
-            
+
             # Debug: log response status and body
             logger.info(
                 "Gemini response status: %d", resp.status_code
@@ -53,7 +53,7 @@ class GeminiProvider(AIProvider):
                 logger.error(
                     "Gemini error response: %s", resp.text[:200]
                 )
-            
+
             resp.raise_for_status()
             data = resp.json()
             result_text = (
