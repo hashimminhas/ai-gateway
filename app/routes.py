@@ -1,7 +1,7 @@
 import functools
 from datetime import datetime, timezone
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from app import db, limiter
@@ -12,6 +12,11 @@ from app.decision import make_decision
 
 api_bp = Blueprint('api', __name__)
 orchestrator = Orchestrator()
+
+
+@api_bp.route('/')
+def index():
+    return render_template('index.html')
 
 
 def require_api_key(f):

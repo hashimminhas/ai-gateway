@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Gateway</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0f1117;color:#e1e4e8;line-height:1.6;min-height:100vh}
+  a{color:#58a6ff}
+
+  /* Layout */
+  .container{max-width:960px;margin:0 auto;padding:20px}
+
+  /* Header */
+  header{text-align:center;padding:32px 0 24px;border-bottom:1px solid #21262d}
+  header h1{font-size:2rem;color:#58a6ff;margin-bottom:4px}
+  header p{color:#8b949e;font-size:.95rem}
+  .status-pill{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:4px 14px;border-radius:20px;background:#161b22;font-size:.82rem;color:#8b949e}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:#484f58}
+  .status-dot.green{background:#3fb950}
+  .status-dot.red{background:#f85149}
+
+  /* Cards / Sections */
+  .card{background:#161b22;border:1px solid #21262d;border-radius:10px;padding:24px;margin-top:24px}
+  .card h2{font-size:1.1rem;margin-bottom:16px;color:#c9d1d9}
+
+  /* Form */
+  label{display:block;font-size:.85rem;color:#8b949e;margin-bottom:4px}
+  textarea,select,input[type=text]{width:100%;padding:10px 12px;border:1px solid #30363d;border-radius:6px;background:#0d1117;color:#e1e4e8;font-size:.9rem;resize:vertical}
+  textarea{min-height:100px}
+  select{appearance:auto}
+  .form-row{display:flex;gap:12px;margin-top:12px}
+  .form-row>div{flex:1}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 24px;border:none;border-radius:6px;font-size:.9rem;font-weight:600;cursor:pointer;margin-top:16px;transition:background .15s}
+  .btn-primary{background:#238636;color:#fff}
+  .btn-primary:hover{background:#2ea043}
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed}
+
+  /* Spinner */
+  .spinner{display:none;width:20px;height:20px;border:2px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:spin .6s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* Result */
+  .result-section{display:none}
+  .result-meta{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  .meta-item{background:#0d1117;padding:8px 14px;border-radius:6px;font-size:.85rem}
+  .meta-item span{color:#8b949e;margin-right:4px}
+  .result-text{background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:16px;white-space:pre-wrap;font-size:.9rem;max-height:300px;overflow-y:auto}
+
+  /* Badge */
+  .badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.8rem;font-weight:600;text-transform:uppercase}
+  .badge-pass{background:#113b23;color:#3fb950}
+  .badge-fail{background:#3d1214;color:#f85149}
+  .badge-info{background:#2a1e00;color:#d29922}
+
+  /* Error */
+  .error-box{display:none;background:#3d1214;border:1px solid #f85149;color:#f85149;border-radius:6px;padding:12px 16px;margin-top:14px;font-size:.9rem}
+
+  /* Table */
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  th{text-align:left;padding:8px 10px;color:#8b949e;border-bottom:1px solid #21262d;font-weight:600}
+  td{padding:8px 10px;border-bottom:1px solid #161b22}
+  .status-success{color:#3fb950}
+  .status-error{color:#f85149}
+
+  /* Metric cards */
+  .metrics-row{display:flex;gap:14px;flex-wrap:wrap}
+  .metric-card{flex:1;min-width:140px;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:16px;text-align:center}
+  .metric-card .value{font-size:1.5rem;font-weight:700;color:#58a6ff}
+  .metric-card .label{font-size:.8rem;color:#8b949e;margin-top:4px}
+
+  /* Structured output */
+  .structured-output{margin-top:12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:14px;font-size:.85rem}
+  .structured-output pre{white-space:pre-wrap;color:#c9d1d9}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <h1>AI Gateway</h1>
+    <p>Resilient AI Orchestration Service</p>
+    <div class="status-pill">
+      <span class="status-dot" id="healthDot"></span>
+      <span id="healthText">Checking…</span>
+    </div>
+  </header>
+
+  <!-- MAIN FORM -->
+  <div class="card">
+    <h2>Run a Task</h2>
+    <label for="inputText">Input Text</label>
+    <textarea id="inputText" placeholder="Enter text to process..."></textarea>
+    <div class="form-row">
+      <div>
+        <label for="taskSelect">Task</label>
+        <select id="taskSelect">
+          <option value="summarize">summarize</option>
+          <option value="invoice_check">invoice_check</option>
+        </select>
+      </div>
+      <div>
+        <label for="providerSelect">Provider</label>
+        <select id="providerSelect">
+          <option value="auto">auto</option>
+          <option value="claude">claude</option>
+          <option value="gemini">gemini</option>
+          <option value="openai">openai</option>
+          <option value="huggingface">huggingface</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="submitBtn" onclick="runTask()">
+      <span class="spinner" id="submitSpinner"></span>
+      Run Task
+    </button>
+    <div class="error-box" id="errorBox"></div>
+
+    <!-- Result -->
+    <div class="result-section" id="resultSection">
+      <h2 style="margin-top:20px;margin-bottom:12px">Result</h2>
+      <div class="result-meta" id="resultMeta"></div>
+      <div class="result-text" id="resultText"></div>
+      <div class="structured-output" id="structuredOutput" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- METRICS -->
+  <div class="card">
+    <h2>Metrics</h2>
+    <div class="metrics-row">
+      <div class="metric-card"><div class="value" id="metricTotal">-</div><div class="label">Total Requests</div></div>
+      <div class="metric-card"><div class="value" id="metricErrors">-</div><div class="label">Total Errors</div></div>
+      <div class="metric-card"><div class="value" id="metricProvider">-</div><div class="label">Most Used Provider</div></div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="card">
+    <h2>Request History <span style="font-size:.75rem;color:#484f58;font-weight:400">(auto-refreshes every 30s)</span></h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Timestamp</th><th>Task</th><th>Provider</th><th>Status</th><th>Latency (ms)</th></tr></thead>
+        <tbody id="historyBody"><tr><td colspan="5" style="color:#484f58">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ---------- Health ---------- */
+function checkHealth(){
+  fetch('/health')
+    .then(function(r){return r.json()})
+    .then(function(){
+      document.getElementById('healthDot').className='status-dot green';
+      document.getElementById('healthText').textContent='Healthy';
+    })
+    .catch(function(){
+      document.getElementById('healthDot').className='status-dot red';
+      document.getElementById('healthText').textContent='Unhealthy';
+    });
+}
+checkHealth();
+setInterval(checkHealth, 30000);
+
+/* ---------- Run task ---------- */
+function runTask(){
+  var text=document.getElementById('inputText').value.trim();
+  var task=document.getElementById('taskSelect').value;
+  var provider=document.getElementById('providerSelect').value;
+  var btn=document.getElementById('submitBtn');
+  var spinner=document.getElementById('submitSpinner');
+  var errorBox=document.getElementById('errorBox');
+  var resultSection=document.getElementById('resultSection');
+
+  errorBox.style.display='none';
+  resultSection.style.display='none';
+
+  if(!text){errorBox.textContent='Please enter some text.';errorBox.style.display='block';return;}
+
+  btn.disabled=true;
+  spinner.style.display='inline-block';
+
+  fetch('/ai/task',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({task:task,text:text,provider:provider})
+  })
+  .then(function(r){
+    return r.json().then(function(data){return {ok:r.ok, data:data}});
+  })
+  .then(function(res){
+    btn.disabled=false;
+    spinner.style.display='none';
+
+    if(!res.ok){
+      errorBox.textContent=res.data.error||'Request failed ('+res.data.provider_used+')';
+      errorBox.style.display='block';
+      return;
+    }
+
+    var d=res.data;
+
+    /* Meta chips */
+    var meta=document.getElementById('resultMeta');
+    meta.innerHTML=
+      '<div class="meta-item"><span>Provider:</span>'+esc(d.provider_used)+'</div>'+
+      '<div class="meta-item"><span>Confidence:</span>'+(d.confidence!=null?d.confidence:'N/A')+'</div>'+
+      '<div class="meta-item"><span>Latency:</span>'+(d.latency_ms!=null?d.latency_ms+' ms':'N/A')+'</div>';
+
+    /* Result text */
+    document.getElementById('resultText').textContent=d.result||'';
+
+    /* Structured output for invoice_check */
+    var so=document.getElementById('structuredOutput');
+    if(d.decision){
+      var dec=d.decision;
+      var badgeClass='badge-info';
+      if(dec.decision==='PASS') badgeClass='badge-pass';
+      else if(dec.decision==='FAIL') badgeClass='badge-fail';
+      so.innerHTML='<strong>Decision:</strong> <span class="badge '+badgeClass+'">'+esc(dec.decision)+'</span>'+
+        (dec.reason?'<p style="margin-top:8px;color:#8b949e">'+esc(dec.reason)+'</p>':'')+
+        (dec.details?'<pre style="margin-top:8px">'+esc(JSON.stringify(dec.details,null,2))+'</pre>':'');
+      so.style.display='block';
+    }else{
+      so.style.display='none';
+    }
+
+    resultSection.style.display='block';
+    loadHistory();
+  })
+  .catch(function(err){
+    btn.disabled=false;
+    spinner.style.display='none';
+    errorBox.textContent='Network error: '+err.message;
+    errorBox.style.display='block';
+  });
+}
+
+/* ---------- History + Metrics ---------- */
+function loadHistory(){
+  fetch('/history')
+    .then(function(r){return r.json()})
+    .then(function(rows){
+      /* History table (last 10) */
+      var body=document.getElementById('historyBody');
+      if(!rows.length){body.innerHTML='<tr><td colspan="5" style="color:#484f58">No requests yet.</td></tr>';updateMetrics(rows);return;}
+      var html='';
+      var display=rows.slice(0,10);
+      for(var i=0;i<display.length;i++){
+        var r=display[i];
+        var cls=r.status==='success'?'status-success':'status-error';
+        html+='<tr>'+
+          '<td>'+esc(formatTS(r.timestamp))+'</td>'+
+          '<td>'+esc(r.task)+'</td>'+
+          '<td>'+esc(r.provider||'-')+'</td>'+
+          '<td class="'+cls+'">'+esc(r.status)+'</td>'+
+          '<td>'+(r.latency_ms!=null?r.latency_ms:'—')+'</td></tr>';
+      }
+      body.innerHTML=html;
+      updateMetrics(rows);
+    })
+    .catch(function(){
+      document.getElementById('historyBody').innerHTML='<tr><td colspan="5" style="color:#f85149">Failed to load history.</td></tr>';
+    });
+}
+
+function updateMetrics(rows){
+  document.getElementById('metricTotal').textContent=rows.length;
+  var errors=0;
+  var provCount={};
+  for(var i=0;i<rows.length;i++){
+    if(rows[i].status==='error') errors++;
+    var p=rows[i].provider||'unknown';
+    provCount[p]=(provCount[p]||0)+1;
+  }
+  document.getElementById('metricErrors').textContent=errors;
+  var topProv='-';var topN=0;
+  for(var k in provCount){if(provCount[k]>topN){topN=provCount[k];topProv=k;}}
+  document.getElementById('metricProvider').textContent=topProv;
+}
+
+function formatTS(iso){
+  try{var d=new Date(iso);return d.toLocaleString();}catch(e){return iso;}
+}
+
+/* ---------- Helpers ---------- */
+function esc(s){
+  if(s==null) return '';
+  var d=document.createElement('div');
+  d.appendChild(document.createTextNode(String(s)));
+  return d.innerHTML;
+}
+
+/* Initial load & auto-refresh */
+loadHistory();
+setInterval(loadHistory, 30000);
+</script>
+</body>
+</html>
