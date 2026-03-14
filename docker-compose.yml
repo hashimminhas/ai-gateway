@@ -3,6 +3,7 @@ version: "3.8"
 services:
   app:
     build: .
+    restart: unless-stopped
     ports:
       - "5000:5000"
     environment:
@@ -14,12 +15,14 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - HF_API_KEY=${HF_API_KEY}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - aigateway-net
 
   db:
     image: postgres:15
+    restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
@@ -28,6 +31,11 @@ services:
       - POSTGRES_DB=aigateway
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aigateway -d aigateway"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     networks:
       - aigateway-net
 

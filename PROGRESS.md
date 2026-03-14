@@ -342,3 +342,13 @@ All 15 steps finished. Service is live at:
   - `monitoring/grafana/dashboards/ai-gateway-overview.json`
   - Includes requests, errors, failovers, request-rate-by-provider, and p95 latency panels
 - Updated README Option-B docs with observability URLs and troubleshooting steps
+
+### Post-Completion — Docker Startup Reliability Fix ✅
+- Fixed root cause of empty Grafana dashboard and `localhost:5000` down in local Docker runs:
+  - `app` container was crashing because `db.create_all()` ran before PostgreSQL accepted connections
+- Updated `app/__init__.py`:
+  - Added retry loop around `db.create_all()` (30 attempts, 2s delay)
+- Updated `docker-compose.yml`:
+  - Added PostgreSQL healthcheck (`pg_isready`)
+  - Changed app `depends_on` to wait for `db` health
+  - Added `restart: unless-stopped` for `app` and `db`
