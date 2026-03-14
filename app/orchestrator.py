@@ -5,6 +5,7 @@ from app.config import Config
 from app.circuit_breaker import CircuitBreaker
 from app.providers.mistral_provider import MistralProvider
 from app.providers.gemini_provider import GeminiProvider
+from app.providers.openai_provider import OpenAIProvider
 from app.providers.claude_provider import ClaudeProvider
 from app.providers.huggingface_provider import HuggingFaceProvider
 from app.providers.base import ProviderError
@@ -12,7 +13,7 @@ from app.metrics import request_count, error_count, provider_latency, failover_c
 
 logger = logging.getLogger(__name__)
 
-PROVIDER_ORDER = ["mistral", "gemini", "claude", "huggingface"]
+PROVIDER_ORDER = ["mistral", "gemini", "openai", "claude", "huggingface"]
 
 
 class Orchestrator:
@@ -20,6 +21,7 @@ class Orchestrator:
         self.providers = {
             "mistral": MistralProvider(),
             "gemini": GeminiProvider(),
+            "openai": OpenAIProvider(),
             "claude": ClaudeProvider(),
             "huggingface": HuggingFaceProvider(),
         }

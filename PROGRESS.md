@@ -279,3 +279,14 @@ All 15 steps finished. Service is live at:
   - Model: `mistralai/devstral-2-123b-instruct-2512`
 - Updated `app/providers/mistral_provider.py` model to `mistralai/devstral-2-123b-instruct-2512`
 - Updated UI error rendering in `app/templates/index.html` to show first backend detail message for faster troubleshooting
+
+### Post-Completion — OpenAI Provider Re-Integration ✅
+- Added new provider module: `app/providers/openai_provider.py`
+  - Endpoint: `https://api.openai.com/v1/chat/completions`
+  - Model: `gpt-4o-mini`
+  - Env var: `OPENAI_API_KEY`
+- Updated `app/config.py` to load `OPENAI_API_KEY`
+- Updated `app/orchestrator.py` to register OpenAI and include it in fallback order:
+  - `mistral -> gemini -> openai -> claude -> huggingface`
+- Updated UI provider dropdown in `app/templates/index.html` to include `openai`
+- Updated `tests/test_orchestrator.py` to mock `OpenAIProvider` in all orchestrator tests

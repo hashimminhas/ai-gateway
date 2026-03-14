@@ -6,9 +6,10 @@ from app.circuit_breaker import STATE_OPEN
 
 @patch('app.orchestrator.HuggingFaceProvider')
 @patch('app.orchestrator.ClaudeProvider')
+@patch('app.orchestrator.OpenAIProvider')
 @patch('app.orchestrator.GeminiProvider')
 @patch('app.orchestrator.MistralProvider')
-def test_fallback_on_failure(mock_mistral_cls, mock_gemini_cls, mock_claude_cls, mock_hf_cls):
+def test_fallback_on_failure(mock_mistral_cls, mock_gemini_cls, mock_openai_cls, mock_claude_cls, mock_hf_cls):
     mock_mistral = MagicMock()
     mock_mistral.name = 'mistral'
     mock_mistral.call.side_effect = ProviderError('mistral', 'not configured')
@@ -18,6 +19,11 @@ def test_fallback_on_failure(mock_mistral_cls, mock_gemini_cls, mock_claude_cls,
     mock_gemini.name = 'gemini'
     mock_gemini.call.side_effect = ProviderError('gemini', 'timeout')
     mock_gemini_cls.return_value = mock_gemini
+
+    mock_openai = MagicMock()
+    mock_openai.name = 'openai'
+    mock_openai.call.side_effect = ProviderError('openai', 'timeout')
+    mock_openai_cls.return_value = mock_openai
 
     mock_claude = MagicMock()
     mock_claude.name = 'claude'
@@ -39,9 +45,10 @@ def test_fallback_on_failure(mock_mistral_cls, mock_gemini_cls, mock_claude_cls,
 
 @patch('app.orchestrator.HuggingFaceProvider')
 @patch('app.orchestrator.ClaudeProvider')
+@patch('app.orchestrator.OpenAIProvider')
 @patch('app.orchestrator.GeminiProvider')
 @patch('app.orchestrator.MistralProvider')
-def test_skip_open_circuit(mock_mistral_cls, mock_gemini_cls, mock_claude_cls, mock_hf_cls):
+def test_skip_open_circuit(mock_mistral_cls, mock_gemini_cls, mock_openai_cls, mock_claude_cls, mock_hf_cls):
     mock_mistral = MagicMock()
     mock_mistral.name = 'mistral'
     mock_mistral.call.side_effect = ProviderError('mistral', 'not configured')
@@ -50,6 +57,11 @@ def test_skip_open_circuit(mock_mistral_cls, mock_gemini_cls, mock_claude_cls, m
     mock_gemini = MagicMock()
     mock_gemini.name = 'gemini'
     mock_gemini_cls.return_value = mock_gemini
+
+    mock_openai = MagicMock()
+    mock_openai.name = 'openai'
+    mock_openai.call.side_effect = ProviderError('openai', 'timeout')
+    mock_openai_cls.return_value = mock_openai
 
     mock_claude = MagicMock()
     mock_claude.name = 'claude'
@@ -73,9 +85,10 @@ def test_skip_open_circuit(mock_mistral_cls, mock_gemini_cls, mock_claude_cls, m
 
 @patch('app.orchestrator.HuggingFaceProvider')
 @patch('app.orchestrator.ClaudeProvider')
+@patch('app.orchestrator.OpenAIProvider')
 @patch('app.orchestrator.GeminiProvider')
 @patch('app.orchestrator.MistralProvider')
-def test_result_structure(mock_mistral_cls, mock_gemini_cls, mock_claude_cls, mock_hf_cls):
+def test_result_structure(mock_mistral_cls, mock_gemini_cls, mock_openai_cls, mock_claude_cls, mock_hf_cls):
     mock_mistral = MagicMock()
     mock_mistral.name = 'mistral'
     mock_mistral.call.side_effect = ProviderError('mistral', 'not configured')
@@ -85,6 +98,10 @@ def test_result_structure(mock_mistral_cls, mock_gemini_cls, mock_claude_cls, mo
     mock_gemini.name = 'gemini'
     mock_gemini.call.return_value = {"result": "summary", "confidence": 0.85}
     mock_gemini_cls.return_value = mock_gemini
+
+    mock_openai = MagicMock()
+    mock_openai.name = 'openai'
+    mock_openai_cls.return_value = mock_openai
 
     mock_claude = MagicMock()
     mock_claude.name = 'claude'
@@ -106,11 +123,13 @@ def test_result_structure(mock_mistral_cls, mock_gemini_cls, mock_claude_cls, mo
 
 @patch('app.orchestrator.HuggingFaceProvider')
 @patch('app.orchestrator.ClaudeProvider')
+@patch('app.orchestrator.OpenAIProvider')
 @patch('app.orchestrator.GeminiProvider')
 @patch('app.orchestrator.MistralProvider')
-def test_all_providers_fail(mock_mistral_cls, mock_gemini_cls, mock_claude_cls, mock_hf_cls):
+def test_all_providers_fail(mock_mistral_cls, mock_gemini_cls, mock_openai_cls, mock_claude_cls, mock_hf_cls):
     for mock_cls, name in [(mock_mistral_cls, 'mistral'),
                            (mock_gemini_cls, 'gemini'),
+                           (mock_openai_cls, 'openai'),
                            (mock_claude_cls, 'claude'),
                            (mock_hf_cls, 'huggingface')]:
         mock_provider = MagicMock()
