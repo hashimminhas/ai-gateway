@@ -328,3 +328,17 @@ All 15 steps finished. Service is live at:
   - Shows demo key hint text near API key input
   - Added `Use Demo Key` button to auto-fill key
   - Prefills key on first load when no key exists in localStorage
+
+### Post-Completion — Grafana + Prometheus Stack ✅
+- Added full observability services to `docker-compose.yml`:
+  - `prometheus` on port `9090`
+  - `grafana` on port `3000`
+- Added Prometheus scrape config:
+  - `monitoring/prometheus.yml` scraping `app:5000/metrics`
+- Added Grafana provisioning:
+  - Datasource config at `monitoring/grafana/provisioning/datasources/datasource.yml`
+  - Dashboard provider config at `monitoring/grafana/provisioning/dashboards/dashboard.yml`
+- Added ready dashboard JSON:
+  - `monitoring/grafana/dashboards/ai-gateway-overview.json`
+  - Includes requests, errors, failovers, request-rate-by-provider, and p95 latency panels
+- Updated README Option-B docs with observability URLs and troubleshooting steps

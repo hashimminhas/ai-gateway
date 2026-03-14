@@ -424,14 +424,29 @@ cp .env.example .env   # or create .env manually — see table below
 docker-compose up --build
 ```
 
-This starts two containers: **app** (Flask on port 5000) and **db** (PostgreSQL).  
+This starts four containers:
+- **app** (Flask on port 5000)
+- **db** (PostgreSQL on port 5432)
+- **prometheus** (metrics backend on port 9090)
+- **grafana** (dashboard UI on port 3000)
+
 Wait for the line `Running on http://0.0.0.0:5000` before testing.
 
 #### 4. Open the frontend
 
 Navigate to **http://localhost:5000**.
 
-#### 5. Stop the service
+#### 5. Open observability tools
+
+- Prometheus: **http://localhost:9090**
+- Grafana: **http://localhost:3000** (default login: `admin` / `admin`)
+
+Grafana is pre-provisioned with:
+- Data source: Prometheus (`http://prometheus:9090`)
+- Dashboard: **AI Gateway Overview**
+  - File: `monitoring/grafana/dashboards/ai-gateway-overview.json`
+
+#### 6. Stop the service
 
 ```bash
 docker-compose down        # stop containers
@@ -448,6 +463,8 @@ docker-compose down -v     # also delete the database volume
 | `ModuleNotFoundError: No module named 'psycopg2'` | Using PostgreSQL URL without the driver | Switch to `DATABASE_URL=sqlite:///aigateway.db` for local dev |
 | `OperationalError: could not connect to server` | PostgreSQL isn't running | Use SQLite (Option A) or start Docker (Option B) |
 | Port 5000 already in use | Another process on port 5000 | Change the port: `python run.py` → edit `run.py` and set `port=5001` |
+| Grafana shows no data | App not scraped by Prometheus yet | Check `http://localhost:9090/targets` and verify `ai-gateway` target is UP |
+| Dashboard missing in Grafana | Provisioning files not mounted | Verify `monitoring/grafana/provisioning/` and restart compose |
 | `/ai/task` returns 503 | No usable API keys configured | Set `NVIDIA_API_KEY` (recommended) or set native keys (`OPENAI_API_KEY`, `CLAUDE_API_KEY`, `GEMINI_API_KEY`) |
 | Windows — `Activate.ps1 cannot be loaded` | PowerShell execution policy | Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` first |
 
