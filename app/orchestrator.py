@@ -35,10 +35,10 @@ class Orchestrator:
         }
 
     def execute(self, task, text, preferred_provider="auto"):
+        # When caller picks a specific provider, only try that one — no silent fallback.
+        # Fallback chain only runs in "auto" mode.
         if preferred_provider != "auto" and preferred_provider in self.providers:
-            order = [preferred_provider] + [
-                p for p in PROVIDER_ORDER if p != preferred_provider
-            ]
+            order = [preferred_provider]
         else:
             order = list(PROVIDER_ORDER)
 
