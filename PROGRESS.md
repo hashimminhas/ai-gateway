@@ -267,3 +267,15 @@ All 15 steps finished. Service is live at:
   - Sends `X-API-Key` header for `/ai/task` when provided
   - Sends `X-API-Key` header for `/history`
   - Stores key in browser localStorage (`aigw_api_key`) and restores on reload for convenience
+
+### Post-Completion — Live Provider Failure Diagnosis & Fix ✅
+- Live endpoint diagnostics from Render `/ai/task` showed provider-specific failures:
+  - Mistral: `404` with previous model slug
+  - Gemini: `404` (old model) / key currently quota exhausted
+  - Claude: `401 Unauthorized` (key/account issue)
+  - HuggingFace: `410 Gone` on legacy inference endpoint/model
+- Verified NVIDIA endpoint works with:
+  - Endpoint: `https://integrate.api.nvidia.com/v1/chat/completions`
+  - Model: `mistralai/devstral-2-123b-instruct-2512`
+- Updated `app/providers/mistral_provider.py` model to `mistralai/devstral-2-123b-instruct-2512`
+- Updated UI error rendering in `app/templates/index.html` to show first backend detail message for faster troubleshooting

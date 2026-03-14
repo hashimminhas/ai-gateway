@@ -208,7 +208,11 @@ function runTask(){
     spinner.style.display='none';
 
     if(!res.ok){
-      errorBox.textContent=res.data.error||'Request failed ('+res.data.provider_used+')';
+      var detail='';
+      if(res.data && Array.isArray(res.data.details) && res.data.details.length>0){
+        detail=' - '+res.data.details[0];
+      }
+      errorBox.textContent=(res.data.error||('Request failed ('+res.data.provider_used+')'))+detail;
       errorBox.style.display='block';
       return;
     }

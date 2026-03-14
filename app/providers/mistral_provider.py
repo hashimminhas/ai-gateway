@@ -26,7 +26,7 @@ class MistralProvider(AIProvider):
             "Content-Type": "application/json",
         }
         payload = {
-            "model": "mistralai/mistral-small-3.1-24b-instruct",
+            "model": "mistralai/devstral-2-123b-instruct-2512",
             "messages": [
                 {
                     "role": "user",
