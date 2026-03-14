@@ -319,3 +319,12 @@ All 15 steps finished. Service is live at:
 - Updated auth section to include `GET /provider/status` and `POST /history/cleanup`
 - Updated troubleshooting and local `.env` examples to recommend `NVIDIA_API_KEY`
 - Updated test coverage count in README (`test_routes.py`: 8 tests)
+
+### Post-Completion — Dashboard UI Refresh + API Key UX ✅
+- Redesigned `app/templates/index.html` with a modern visual style:
+  - Gradient background, glass cards, improved typography, stronger color contrast
+  - Refined status pills, metrics cards, table styling, and responsive behavior
+- Added clear first-time key guidance in the UI:
+  - Shows demo key hint text near API key input
+  - Added `Use Demo Key` button to auto-fill key
+  - Prefills key on first load when no key exists in localStorage

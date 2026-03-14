@@ -282,6 +282,13 @@ Rate limit: 5 requests/minute.
 
 If `older_than_minutes` is omitted, all error rows are removed.
 
+### Dashboard API key helper
+
+The frontend includes an API-key helper near the input field:
+- A demo hint is displayed for first-time users
+- A `Use Demo Key` button can auto-fill the key
+- The key is persisted in browser localStorage as `aigw_api_key`
+
 ---
 
 ## How to Run Locally
