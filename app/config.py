@@ -3,6 +3,7 @@ import os
 
 class Config:
     DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://localhost/aigateway')
+    MISTRAL_API_KEY = os.getenv('MISTRAL_API_KEY', '')
     CLAUDE_API_KEY = os.getenv('CLAUDE_API_KEY', '')
     GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
     HF_API_KEY = os.getenv('HF_API_KEY', '')

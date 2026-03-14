@@ -13,7 +13,7 @@
 3. [Reliability Features](#reliability-features)
 4. [Observability](#observability)
 5. [API Documentation](#api-documentation)
-6. [How to Run Locally](#how-to-run-locally)
+6. [How to Run Locally](#how-to-run-locally) ← **Start here if you're new**
 7. [How to Run Tests](#how-to-run-tests)
 8. [Deployment Process](#deployment-process)
 9. [Environment Variables](#environment-variables)
@@ -247,37 +247,160 @@ Returns the last 50 requests from the database:
 
 ## How to Run Locally
 
-### Prerequisites
-- Docker and Docker Compose installed
+There are two ways to run the project: **Option A** (plain Python, quickest — no Docker needed) and **Option B** (Docker Compose, mirrors production exactly).
 
-### Start the Service
+---
+
+### Option A — Plain Python (Recommended for first-timers)
+
+#### 1. Prerequisites
+
+| Requirement | Version | Check |
+|-------------|---------|-------|
+| Python | 3.10 or newer | `python --version` |
+| pip | any recent | `pip --version` |
+| Git | any | `git --version` |
+
+No database server required — the app will use a local SQLite file automatically.
+
+#### 2. Clone the repository
 
 ```bash
-# Clone the repo
 git clone https://github.com/hashimminhas/ai-gateway.git
 cd ai-gateway
-
-# Create .env file with your API keys
-cp .env.example .env
-# Edit .env and add your keys
-
-# Start everything
-docker-compose up --build
 ```
 
-The API will be available at `http://localhost:5000`.
+#### 3. Create and activate a virtual environment
 
-### Test it
+```bash
+# macOS / Linux
+python -m venv .venv
+source .venv/bin/activate
+
+# Windows (PowerShell)
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+
+# Windows (Command Prompt)
+python -m venv .venv
+.venv\Scripts\activate.bat
+```
+
+> You should see `(.venv)` at the start of your terminal prompt.
+
+#### 4. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+> `psycopg2-binary` may show a warning if PostgreSQL isn't installed — that is fine for SQLite mode.
+
+#### 5. Create your `.env` file
+
+Copy the example below and save it as `.env` in the project root:
+
+```env
+# Minimum config — uses SQLite, no API keys needed to boot
+DATABASE_URL=sqlite:///aigateway.db
+
+# Optional — add real keys to actually call AI providers
+# CLAUDE_API_KEY=sk-ant-...
+# GEMINI_API_KEY=AIza...
+# HF_API_KEY=hf_...
+
+# Optional — protect the API with a key
+# API_KEY=my-secret-key
+```
+
+> Without real API keys the app will start fine and the UI will load, but `/ai/task` calls will return a 503 because no provider is reachable. Add at least one key to see real results.
+
+#### 6. Start the server
+
+```bash
+# macOS / Linux
+DATABASE_URL=sqlite:///aigateway.db python run.py
+
+# Windows PowerShell
+$env:DATABASE_URL="sqlite:///aigateway.db"; python run.py
+
+# Or, if you added DATABASE_URL to your .env file (requires python-dotenv loaded):
+python run.py
+```
+
+You should see:
+
+```
+ * Running on http://0.0.0.0:5000
+ * Debug mode: on
+```
+
+#### 7. Open the frontend
+
+Navigate to **http://localhost:5000** in your browser — the AI Gateway dashboard will load.
+
+#### 8. Quick smoke-test
 
 ```bash
 # Health check
 curl http://localhost:5000/health
 
-# Submit a task
+# Submit a task (requires at least one API key configured)
 curl -X POST http://localhost:5000/ai/task \
   -H "Content-Type: application/json" \
-  -d '{"task": "summarize", "text": "Your text here"}'
+  -d '{"task": "summarize", "text": "The quick brown fox jumps over the lazy dog."}'
 ```
+
+---
+
+### Option B — Docker Compose (mirrors production)
+
+#### 1. Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
+
+#### 2. Clone and configure
+
+```bash
+git clone https://github.com/hashimminhas/ai-gateway.git
+cd ai-gateway
+
+# Create .env with your keys (PostgreSQL is started by Docker automatically)
+cp .env.example .env   # or create .env manually — see table below
+```
+
+#### 3. Start everything
+
+```bash
+docker-compose up --build
+```
+
+This starts two containers: **app** (Flask on port 5000) and **db** (PostgreSQL).  
+Wait for the line `Running on http://0.0.0.0:5000` before testing.
+
+#### 4. Open the frontend
+
+Navigate to **http://localhost:5000**.
+
+#### 5. Stop the service
+
+```bash
+docker-compose down        # stop containers
+docker-compose down -v     # also delete the database volume
+```
+
+---
+
+### Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|-------------|-----|
+| `ModuleNotFoundError: No module named 'flask'` | venv not activated or deps not installed | Run `pip install -r requirements.txt` inside the activated venv |
+| `ModuleNotFoundError: No module named 'psycopg2'` | Using PostgreSQL URL without the driver | Switch to `DATABASE_URL=sqlite:///aigateway.db` for local dev |
+| `OperationalError: could not connect to server` | PostgreSQL isn't running | Use SQLite (Option A) or start Docker (Option B) |
+| Port 5000 already in use | Another process on port 5000 | Change the port: `python run.py` → edit `run.py` and set `port=5001` |
+| `/ai/task` returns 503 | No API keys configured | Add at least one key (`GEMINI_API_KEY`, `CLAUDE_API_KEY`, or `HF_API_KEY`) to `.env` |
+| Windows — `Activate.ps1 cannot be loaded` | PowerShell execution policy | Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` first |
 
 ---
 

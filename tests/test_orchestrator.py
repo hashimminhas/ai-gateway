@@ -7,7 +7,13 @@ from app.circuit_breaker import STATE_OPEN
 @patch('app.orchestrator.HuggingFaceProvider')
 @patch('app.orchestrator.ClaudeProvider')
 @patch('app.orchestrator.GeminiProvider')
-def test_fallback_on_failure(mock_gemini_cls, mock_claude_cls, mock_hf_cls):
+@patch('app.orchestrator.MistralProvider')
+def test_fallback_on_failure(mock_mistral_cls, mock_gemini_cls, mock_claude_cls, mock_hf_cls):
+    mock_mistral = MagicMock()
+    mock_mistral.name = 'mistral'
+    mock_mistral.call.side_effect = ProviderError('mistral', 'not configured')
+    mock_mistral_cls.return_value = mock_mistral
+
     mock_gemini = MagicMock()
     mock_gemini.name = 'gemini'
     mock_gemini.call.side_effect = ProviderError('gemini', 'timeout')
@@ -34,7 +40,13 @@ def test_fallback_on_failure(mock_gemini_cls, mock_claude_cls, mock_hf_cls):
 @patch('app.orchestrator.HuggingFaceProvider')
 @patch('app.orchestrator.ClaudeProvider')
 @patch('app.orchestrator.GeminiProvider')
-def test_skip_open_circuit(mock_gemini_cls, mock_claude_cls, mock_hf_cls):
+@patch('app.orchestrator.MistralProvider')
+def test_skip_open_circuit(mock_mistral_cls, mock_gemini_cls, mock_claude_cls, mock_hf_cls):
+    mock_mistral = MagicMock()
+    mock_mistral.name = 'mistral'
+    mock_mistral.call.side_effect = ProviderError('mistral', 'not configured')
+    mock_mistral_cls.return_value = mock_mistral
+
     mock_gemini = MagicMock()
     mock_gemini.name = 'gemini'
     mock_gemini_cls.return_value = mock_gemini
@@ -62,7 +74,13 @@ def test_skip_open_circuit(mock_gemini_cls, mock_claude_cls, mock_hf_cls):
 @patch('app.orchestrator.HuggingFaceProvider')
 @patch('app.orchestrator.ClaudeProvider')
 @patch('app.orchestrator.GeminiProvider')
-def test_result_structure(mock_gemini_cls, mock_claude_cls, mock_hf_cls):
+@patch('app.orchestrator.MistralProvider')
+def test_result_structure(mock_mistral_cls, mock_gemini_cls, mock_claude_cls, mock_hf_cls):
+    mock_mistral = MagicMock()
+    mock_mistral.name = 'mistral'
+    mock_mistral.call.side_effect = ProviderError('mistral', 'not configured')
+    mock_mistral_cls.return_value = mock_mistral
+
     mock_gemini = MagicMock()
     mock_gemini.name = 'gemini'
     mock_gemini.call.return_value = {"result": "summary", "confidence": 0.85}
@@ -89,8 +107,10 @@ def test_result_structure(mock_gemini_cls, mock_claude_cls, mock_hf_cls):
 @patch('app.orchestrator.HuggingFaceProvider')
 @patch('app.orchestrator.ClaudeProvider')
 @patch('app.orchestrator.GeminiProvider')
-def test_all_providers_fail(mock_gemini_cls, mock_claude_cls, mock_hf_cls):
-    for mock_cls, name in [(mock_gemini_cls, 'gemini'),
+@patch('app.orchestrator.MistralProvider')
+def test_all_providers_fail(mock_mistral_cls, mock_gemini_cls, mock_claude_cls, mock_hf_cls):
+    for mock_cls, name in [(mock_mistral_cls, 'mistral'),
+                           (mock_gemini_cls, 'gemini'),
                            (mock_claude_cls, 'claude'),
                            (mock_hf_cls, 'huggingface')]:
         mock_provider = MagicMock()

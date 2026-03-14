@@ -242,3 +242,18 @@
 
 All 15 steps finished. Service is live at:
 **https://ai-gateway-api-9sm2.onrender.com**
+
+### Post-Completion — Mistral (NVIDIA) Provider Integration ✅
+- Added new provider module: `app/providers/mistral_provider.py`
+  - Uses NVIDIA OpenAI-compatible endpoint: `https://integrate.api.nvidia.com/v1/chat/completions`
+  - Model: `mistralai/mistral-small-3.1-24b-instruct`
+  - Auth via `MISTRAL_API_KEY` env variable (Bearer token)
+- Updated `app/config.py` to load `MISTRAL_API_KEY`
+- Updated `app/orchestrator.py` to register Mistral and make it highest priority in auto order:
+  - `mistral -> gemini -> claude -> huggingface`
+- Updated UI provider dropdown in `app/templates/index.html` to include `mistral`
+- Updated deployment/runtime env templates:
+  - `render.yaml` adds `MISTRAL_API_KEY`
+  - `docker-compose.yml` adds `MISTRAL_API_KEY`
+  - `.env.example` adds `MISTRAL_API_KEY` and aligns HF key name to `HF_API_KEY`
+- Updated orchestrator unit tests to patch/mock `MistralProvider` in all scenarios

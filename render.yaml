@@ -11,6 +11,8 @@ services:
           property: connectionString
       - key: CLAUDE_API_KEY
         sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: HF_API_KEY
