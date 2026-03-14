@@ -17,6 +17,7 @@
   header h1{font-size:2rem;color:#58a6ff;margin-bottom:4px}
   header p{color:#8b949e;font-size:.95rem}
   .status-pill{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:4px 14px;border-radius:20px;background:#161b22;font-size:.82rem;color:#8b949e}
+  .status-pill + .status-pill{margin-left:8px}
   .status-dot{width:8px;height:8px;border-radius:50%;background:#484f58}
   .status-dot.green{background:#3fb950}
   .status-dot.red{background:#f85149}
@@ -87,6 +88,10 @@
       <span class="status-dot" id="healthDot"></span>
       <span id="healthText">Checking…</span>
     </div>
+    <div class="status-pill">
+      <span class="status-dot" id="fallbackDot"></span>
+      <span id="fallbackText">Fallback: checking…</span>
+    </div>
   </header>
 
   <!-- MAIN FORM -->
@@ -144,6 +149,12 @@
   <!-- HISTORY -->
   <div class="card">
     <h2>Request History <span style="font-size:.75rem;color:#484f58;font-weight:400">(auto-refreshes every 30s)</span></h2>
+    <div style="margin-bottom:12px">
+      <button class="btn" style="background:#30363d;color:#c9d1d9;margin-top:0;padding:8px 12px" onclick="cleanupErrorHistory()">
+        Clear Error Rows
+      </button>
+      <span id="cleanupInfo" style="font-size:.8rem;color:#8b949e;margin-left:8px"></span>
+    </div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Timestamp</th><th>Task</th><th>Provider</th><th>Status</th><th>Latency (ms)</th></tr></thead>
@@ -170,6 +181,32 @@ function checkHealth(){
 }
 checkHealth();
 setInterval(checkHealth, 30000);
+
+function loadProviderStatus(){
+  var apiKey=document.getElementById('apiKeyInput').value.trim() || localStorage.getItem('aigw_api_key') || '';
+  var headers={};
+  if(apiKey){headers['X-API-Key']=apiKey;}
+
+  fetch('/provider/status',{headers:headers})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      var dot=document.getElementById('fallbackDot');
+      var text=document.getElementById('fallbackText');
+      if(data && data.nvidia_fallback_enabled){
+        dot.className='status-dot green';
+        text.textContent='Fallback: NVIDIA enabled';
+      }else{
+        dot.className='status-dot red';
+        text.textContent='Fallback: NVIDIA disabled';
+      }
+    })
+    .catch(function(){
+      document.getElementById('fallbackDot').className='status-dot red';
+      document.getElementById('fallbackText').textContent='Fallback: unknown';
+    });
+}
+loadProviderStatus();
+setInterval(loadProviderStatus, 30000);
 
 /* ---------- Run task ---------- */
 function runTask(){
@@ -294,6 +331,39 @@ function loadHistory(){
 
       document.getElementById('historyBody').innerHTML='<tr><td colspan="5" style="color:#f85149">Failed to load history.</td></tr>';
     });
+}
+
+function cleanupErrorHistory(){
+  var apiKey=document.getElementById('apiKeyInput').value.trim() || localStorage.getItem('aigw_api_key') || '';
+  var headers={'Content-Type':'application/json'};
+  if(apiKey){
+    headers['X-API-Key']=apiKey;
+  }
+
+  fetch('/history/cleanup', {
+    method:'POST',
+    headers:headers,
+    body:JSON.stringify({older_than_minutes: 0})
+  })
+  .then(function(r){
+    return r.json().then(function(data){return {ok:r.ok, data:data};});
+  })
+  .then(function(res){
+    var info=document.getElementById('cleanupInfo');
+    if(!res.ok){
+      info.style.color='#f85149';
+      info.textContent='Cleanup failed: '+(res.data.error||'Unknown error');
+      return;
+    }
+    info.style.color='#3fb950';
+    info.textContent='Removed '+res.data.deleted+' error row(s).';
+    loadHistory();
+  })
+  .catch(function(){
+    var info=document.getElementById('cleanupInfo');
+    info.style.color='#f85149';
+    info.textContent='Cleanup failed: network error.';
+  });
 }
 
 function updateMetrics(rows){

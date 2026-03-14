@@ -1,5 +1,5 @@
 import functools
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from flask import Blueprint, request, jsonify, render_template
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
@@ -110,3 +110,45 @@ def history():
         .all()
     )
     return jsonify([r.to_dict() for r in records]), 200
+
+
+@api_bp.route('/provider/status', methods=['GET'])
+@require_api_key
+def provider_status():
+    openai_key = Config.OPENAI_API_KEY or ''
+    claude_key = Config.CLAUDE_API_KEY or ''
+    status = {
+        "nvidia_fallback_enabled": bool(Config.NVIDIA_API_KEY),
+        "openai_native_enabled": bool(openai_key) and openai_key.startswith('sk-'),
+        "claude_native_enabled": bool(claude_key) and claude_key.startswith('sk-ant-'),
+        "gemini_native_enabled": bool(Config.GEMINI_API_KEY),
+        "huggingface_native_enabled": bool(Config.HF_API_KEY),
+    }
+    return jsonify(status), 200
+
+
+@api_bp.route('/history/cleanup', methods=['POST'])
+@limiter.limit("5/minute")
+@require_api_key
+def cleanup_history_errors():
+    """Delete error rows from history, optionally only older than N minutes."""
+    data = request.get_json(silent=True) or {}
+    older_than_minutes = data.get('older_than_minutes')
+
+    query = AIRequest.query.filter_by(status='error')
+    if older_than_minutes is not None:
+        try:
+            older_than_minutes = int(older_than_minutes)
+            if older_than_minutes < 0:
+                return jsonify({"error": "older_than_minutes must be >= 0"}), 400
+        except (ValueError, TypeError):
+            return jsonify({"error": "older_than_minutes must be an integer"}), 400
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=older_than_minutes)
+        query = query.filter(AIRequest.timestamp <= cutoff)
+
+    deleted = query.count()
+    if deleted:
+        query.delete(synchronize_session=False)
+        db.session.commit()
+
+    return jsonify({"deleted": deleted}), 200

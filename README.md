@@ -30,7 +30,7 @@
                          ▼
 ┌──────────────────────────────────────────────────────────┐
 │                    Flask API (routes.py)                  │
-│         /ai/task  /health  /metrics  /history             │
+│ /ai/task /health /metrics /history /provider/status       │
 └────────┬──────────────┬──────────────┬───────────────────┘
          │              │              │
          ▼              ▼              ▼
@@ -243,6 +243,34 @@ Returns the last 50 requests from the database:
 ]
 ```
 
+### GET /provider/status
+
+Returns key-based provider/fallback status flags for the dashboard.
+
+```json
+{
+  "nvidia_fallback_enabled": true,
+  "openai_native_enabled": false,
+  "claude_native_enabled": false,
+  "gemini_native_enabled": false,
+  "huggingface_native_enabled": false
+}
+```
+
+### POST /history/cleanup
+
+Deletes rows with `status=error` from request history.
+
+**Request body (optional):**
+
+```json
+{
+  "older_than_minutes": 60
+}
+```
+
+If `older_than_minutes` is omitted, all error rows are removed.
+
 ---
 
 ## How to Run Locally
@@ -450,6 +478,9 @@ Lint (flake8) → Test (pytest + PostgreSQL) → Build (Docker image)
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | Yes | `postgresql://localhost/aigateway` | PostgreSQL connection string |
+| `NVIDIA_API_KEY` | No | `""` | Preferred NVIDIA key for unified fallback endpoint |
+| `MISTRAL_API_KEY` | No | `""` | Backward-compatible fallback source for `NVIDIA_API_KEY` |
+| `OPENAI_API_KEY` | No | `""` | Native OpenAI key (`sk-...`) when available |
 | `CLAUDE_API_KEY` | No | `""` | Anthropic Claude API key |
 | `GEMINI_API_KEY` | No | `""` | Google Gemini API key |
 | `HF_API_KEY` | No | `""` | HuggingFace Inference API token |

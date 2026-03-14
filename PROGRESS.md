@@ -290,3 +290,22 @@ All 15 steps finished. Service is live at:
   - `mistral -> gemini -> openai -> claude -> huggingface`
 - Updated UI provider dropdown in `app/templates/index.html` to include `openai`
 - Updated `tests/test_orchestrator.py` to mock `OpenAIProvider` in all orchestrator tests
+
+### Post-Completion — Dashboard Hardening Pass ✅
+- Added provider/fallback status API in `app/routes.py`:
+  - `GET /provider/status` returns booleans for native keys and NVIDIA fallback availability
+- Added protected history cleanup API in `app/routes.py`:
+  - `POST /history/cleanup` deletes `status=error` rows
+  - Optional payload field `older_than_minutes` for targeted cleanup
+  - Rate-limited to `5/minute`
+- Updated dashboard UI in `app/templates/index.html`:
+  - New live badge: `Fallback: NVIDIA enabled/disabled`
+  - New `Clear Error Rows` button to clean historical error entries from the DB
+- Added route tests in `tests/test_routes.py`:
+  - `test_provider_status`
+  - `test_cleanup_history_errors`
+- Synced deployment/runtime env templates:
+  - `render.yaml` adds `NVIDIA_API_KEY`
+  - `docker-compose.yml` adds `NVIDIA_API_KEY` and `OPENAI_API_KEY`
+  - `.env.example` adds `NVIDIA_API_KEY` and `OPENAI_API_KEY`
+- Updated `README.md` with new endpoints and environment variable documentation
