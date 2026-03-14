@@ -4,6 +4,8 @@ import os
 class Config:
     DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://localhost/aigateway')
     MISTRAL_API_KEY = os.getenv('MISTRAL_API_KEY', '')
+    # Single NVIDIA key used as fallback for all providers (NVIDIA hosts many models)
+    NVIDIA_API_KEY = os.getenv('NVIDIA_API_KEY') or os.getenv('MISTRAL_API_KEY', '')
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
     CLAUDE_API_KEY = os.getenv('CLAUDE_API_KEY', '')
     GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')

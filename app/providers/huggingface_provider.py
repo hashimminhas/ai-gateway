@@ -11,29 +11,26 @@ class HuggingFaceProvider(AIProvider):
     name = "huggingface"
 
     def __init__(self):
-        self.api_key = Config.HF_API_KEY
-        self.base_url = (
-            "https://api-inference.huggingface.co/models"
-            "/EleutherAI/gpt-neo-125M"
-        )
+        # Use NVIDIA endpoint (host many open-source models incl. Microsoft Phi)
+        self.api_key = Config.NVIDIA_API_KEY
+        self.base_url = "https://integrate.api.nvidia.com/v1/chat/completions"
+        self.model = "microsoft/phi-3-mini-128k-instruct"
         self.timeout = Config.TIMEOUT_SECONDS
 
     def call(self, task: str, text: str) -> dict:
         logger.info("Calling HuggingFace provider for task: %s", task)
 
         if not self.api_key:
-            raise ProviderError(self.name, "HF_API_KEY not configured")
+            raise ProviderError(self.name, "NVIDIA_API_KEY not configured")
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
         payload = {
-            "inputs": f"Task: {task}\n\n{text}",
-            "parameters": {
-                "max_length": 100,
-                "temperature": 0.7
-            }
+            "model": self.model,
+            "messages": [{"role": "user", "content": f"Task: {task}\n\n{text}"}],
+            "max_tokens": 1024,
         }
 
         try:
@@ -43,11 +40,8 @@ class HuggingFaceProvider(AIProvider):
             )
             resp.raise_for_status()
             data = resp.json()
-            if isinstance(data, list) and len(data) > 0:
-                result_text = data[0].get("generated_text", str(data[0]))
-            else:
-                result_text = str(data)
-            logger.info("HuggingFace call succeeded")
+            result_text = data["choices"][0]["message"]["content"]
+            logger.info("HuggingFace (via NVIDIA/Phi-3) call succeeded")
             return {"result": result_text, "confidence": 0.75}
         except requests.Timeout:
             raise ProviderError(self.name, "Request timed out")
