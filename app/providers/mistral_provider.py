@@ -11,7 +11,8 @@ class MistralProvider(AIProvider):
     name = "mistral"
 
     def __init__(self):
-        self.api_key = Config.MISTRAL_API_KEY
+        # Prefer unified NVIDIA key; keep backward compatibility with MISTRAL_API_KEY.
+        self.api_key = Config.NVIDIA_API_KEY or Config.MISTRAL_API_KEY
         self.base_url = "https://integrate.api.nvidia.com/v1/chat/completions"
         self.timeout = Config.TIMEOUT_SECONDS
 
@@ -19,7 +20,7 @@ class MistralProvider(AIProvider):
         logger.info("Calling Mistral provider for task: %s", task)
 
         if not self.api_key:
-            raise ProviderError(self.name, "MISTRAL_API_KEY not configured")
+            raise ProviderError(self.name, "NVIDIA_API_KEY/MISTRAL_API_KEY not configured")
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
