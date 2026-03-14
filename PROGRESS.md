@@ -257,3 +257,13 @@ All 15 steps finished. Service is live at:
   - `docker-compose.yml` adds `MISTRAL_API_KEY`
   - `.env.example` adds `MISTRAL_API_KEY` and aligns HF key name to `HF_API_KEY`
 - Updated orchestrator unit tests to patch/mock `MistralProvider` in all scenarios
+
+### Post-Completion — Frontend API Key Header Support ✅
+- Diagnosed live Render behavior at `https://ai-gateway-api-9sm2.onrender.com`:
+  - `/health` returns healthy
+  - `/ai/task` returns `{"error":"Invalid or missing API key"}` without `X-API-Key` header
+- Updated `app/templates/index.html`:
+  - Added optional API key input field
+  - Sends `X-API-Key` header for `/ai/task` when provided
+  - Sends `X-API-Key` header for `/history`
+  - Stores key in browser localStorage (`aigw_api_key`) and restores on reload for convenience
