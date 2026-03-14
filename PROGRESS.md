@@ -365,3 +365,12 @@ All 15 steps finished. Service is live at:
     - Synced provider key behavior notes with current provider implementation
     - Switched docs to modern `docker compose` command format
     - Clarified Docker Hub push behavior in CI section
+
+  ### Post-Completion — YAML Workflow Validation Fix ✅
+  - Diagnosed failing YAML issue in `.github/workflows/ci.yml` using `actionlint`
+  - Root cause:
+    - `secrets.*` context was used directly in step-level `if` expressions where it is not allowed
+  - Fix applied:
+    - Moved secrets into job-level `env` variables
+    - Updated `if` conditions and Docker login/push steps to use `env.*`
+  - Revalidated workflow file successfully with `actionlint`
