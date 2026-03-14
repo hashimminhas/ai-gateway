@@ -10,13 +10,14 @@
 
 1. [Architecture Overview](#architecture-overview)
 2. [Provider Routing Logic](#provider-routing-logic)
-3. [Reliability Features](#reliability-features)
-4. [Observability](#observability)
-5. [API Documentation](#api-documentation)
-6. [How to Run Locally](#how-to-run-locally) ← **Start here if you're new**
-7. [How to Run Tests](#how-to-run-tests)
-8. [Deployment Process](#deployment-process)
-9. [Environment Variables](#environment-variables)
+3. [Challenge Coverage](#challenge-coverage)
+4. [Reliability Features](#reliability-features)
+5. [Observability](#observability)
+6. [API Documentation](#api-documentation)
+7. [How to Run Locally](#how-to-run-locally) ← **Start here if you're new**
+8. [How to Run Tests](#how-to-run-tests)
+9. [Deployment Process](#deployment-process)
+10. [Environment Variables](#environment-variables)
 
 ---
 
@@ -84,11 +85,35 @@ When a request is received with `"provider": "auto"` (default), the orchestrator
 - The `provider_used` field in the response tells you which provider actually handled the request.
 
 Provider key behavior:
-- `mistral` uses `MISTRAL_API_KEY` (NVIDIA endpoint)
+- `mistral` prefers `NVIDIA_API_KEY` and falls back to `MISTRAL_API_KEY` (NVIDIA endpoint)
 - `gemini` prefers `NVIDIA_API_KEY` and falls back to native `GEMINI_API_KEY`
 - `openai` uses native `OPENAI_API_KEY` only when it starts with `sk-`; otherwise it uses `NVIDIA_API_KEY`
 - `claude` prefers `CLAUDE_API_KEY`; if absent, it uses `NVIDIA_API_KEY`
-- `huggingface` uses `NVIDIA_API_KEY`
+- `huggingface` uses `NVIDIA_API_KEY` (HF key kept for compatibility/status reporting)
+
+---
+
+## Challenge Coverage
+
+Checklist against the 24-hour challenge:
+
+| Requirement | Status | Notes |
+|-------------|--------|-------|
+| Backend service (Flask + REST APIs) | ✅ Done | `/ai/task`, `/health`, `/metrics`, `/history` |
+| PostgreSQL persistence | ✅ Done | `ai_requests` model/table with request metadata |
+| Multi-provider orchestration + fallback | ✅ Done | Auto mode: `mistral -> gemini -> openai -> claude -> huggingface` |
+| Retry + timeout + circuit breaker | ✅ Done | Configurable retries/timeouts and per-provider breakers |
+| Structured decision output | ✅ Done | `invoice_check` and `document_review` return PASS/FAIL/NEEDS_INFO |
+| Request logging | ✅ Done | JSON logging with timestamp/provider/latency/status |
+| Prometheus observability endpoint | ✅ Done | `/metrics` with request/error/latency/failover metrics |
+| Dockerfile + Docker Compose | ✅ Done | App + Postgres + Prometheus + Grafana stack |
+| CI pipeline | ✅ Done | Lint + test + Docker build in GitHub Actions |
+| Live deployment | ✅ Done | Render URL is active |
+| Bonus: rate limiting | ✅ Done | `/ai/task` 30/min, `/history/cleanup` 5/min |
+| Bonus: request authentication | ✅ Done | `X-API-Key` via `API_KEY` env var |
+| Bonus: OpenAPI docs | ⚠️ Not implemented | README API docs exist; no generated OpenAPI spec endpoint |
+| Bonus: Grafana dashboard | ✅ Done | Provisioned dashboard in `monitoring/grafana/dashboards/` |
+| Bonus: horizontal scaling note | ✅ Done | See Horizontal Scaling section |
 
 ---
 
@@ -421,7 +446,7 @@ cp .env.example .env   # or create .env manually — see table below
 #### 3. Start everything
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 This starts four containers:
@@ -449,8 +474,8 @@ Grafana is pre-provisioned with:
 #### 6. Stop the service
 
 ```bash
-docker-compose down        # stop containers
-docker-compose down -v     # also delete the database volume
+docker compose down        # stop containers
+docker compose down -v     # also delete the database volume
 ```
 
 ---
@@ -508,6 +533,8 @@ Every push to `main` triggers:
 ```
 Lint (flake8) → Test (pytest + PostgreSQL) → Build (Docker image)
 ```
+
+If Docker Hub secrets are configured (`DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`), the pipeline also tags and pushes `ai-gateway:latest`.
 
 ---
 

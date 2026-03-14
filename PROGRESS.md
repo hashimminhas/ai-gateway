@@ -352,3 +352,16 @@ All 15 steps finished. Service is live at:
   - Added PostgreSQL healthcheck (`pg_isready`)
   - Changed app `depends_on` to wait for `db` health
   - Added `restart: unless-stopped` for `app` and `db`
+
+  ### Post-Completion — Consistency Sweep & Cleanup ✅
+  - Ran a full challenge-alignment sweep across code, compose, CI, and README
+  - Removed obsolete `version` key from `docker-compose.yml` to eliminate Compose warnings
+  - Hardened CI Docker build step in `.github/workflows/ci.yml`:
+    - Always builds local image
+    - Only logs in and pushes to Docker Hub when required secrets exist
+  - Updated `render.yaml` to include `OPENAI_API_KEY` env var for optional native OpenAI mode
+  - Updated `README.md`:
+    - Added explicit **Challenge Coverage** checklist with status for each required/bonus item
+    - Synced provider key behavior notes with current provider implementation
+    - Switched docs to modern `docker compose` command format
+    - Clarified Docker Hub push behavior in CI section
