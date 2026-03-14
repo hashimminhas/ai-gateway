@@ -41,13 +41,13 @@
 │ │Circuit  ││  └──────────────┘  └────────────────┘
 │ │Breakers ││
 │ └─────────┘│
-└──┬────┬────┬─────────────────────────────────────────────┘
-   │    │    │
-   ▼    ▼    ▼
-┌──────┐ ┌──────┐ ┌─────────────┐
-│Gemini│ │Claude│ │ HuggingFace │
-│(pri 1)│ │(pri 2)│ │  (pri 3)    │
-└──────┘ └──────┘ └─────────────┘
+└──┬────┬────┬────┬────┬───────────────────────────────────┘
+  │    │    │    │    │
+  ▼    ▼    ▼    ▼    ▼
+┌───────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌─────────────┐
+│Mistral│ │Gemini│ │OpenAI│ │Claude│ │ HuggingFace │
+│(pri 1)│ │(pri 2)│ │(pri 3)│ │(pri 4)│ │  (pri 5)    │
+└───────┘ └──────┘ └──────┘ └──────┘ └─────────────┘
 ```
 
 **Components:**
@@ -63,7 +63,7 @@
 | Metrics | `app/metrics.py` | Prometheus counters and histograms |
 | Logging | `app/logging_config.py` | Structured JSON logging to console + file |
 | Models | `app/models.py` | SQLAlchemy model for request history |
-| Providers | `app/providers/` | Gemini, Claude, HuggingFace API integrations |
+| Providers | `app/providers/` | Mistral, Gemini, OpenAI, Claude, HuggingFace integrations with NVIDIA fallback |
 
 ---
 
@@ -72,14 +72,23 @@
 When a request is received with `"provider": "auto"` (default), the orchestrator tries providers in priority order:
 
 ```
-1. Gemini   (confidence: 0.85)  ──fail──▶ retry once ──fail──▶
-2. Claude   (confidence: 0.90)  ──fail──▶ retry once ──fail──▶
-3. HuggingFace (confidence: 0.75) ──fail──▶ retry once ──fail──▶ Error 503
+1. Mistral      (confidence: 0.88)  ──fail──▶ retry once ──fail──▶
+2. Gemini       (confidence: 0.85)  ──fail──▶ retry once ──fail──▶
+3. OpenAI       (confidence: 0.89)  ──fail──▶ retry once ──fail──▶
+4. Claude       (confidence: 0.90)  ──fail──▶ retry once ──fail──▶
+5. HuggingFace  (confidence: 0.75)  ──fail──▶ retry once ──fail──▶ Error 503
 ```
 
-- If a specific provider is requested (e.g. `"provider": "claude"`), it tries that one first, then falls back to the others in order.
+- If a specific provider is requested (e.g. `"provider": "claude"`), only that provider is attempted (no silent fallback).
 - Each provider's circuit breaker is checked before attempting a call — if a provider has failed 3+ times recently, it is skipped entirely.
 - The `provider_used` field in the response tells you which provider actually handled the request.
+
+Provider key behavior:
+- `mistral` uses `MISTRAL_API_KEY` (NVIDIA endpoint)
+- `gemini` prefers `NVIDIA_API_KEY` and falls back to native `GEMINI_API_KEY`
+- `openai` uses native `OPENAI_API_KEY` only when it starts with `sk-`; otherwise it uses `NVIDIA_API_KEY`
+- `claude` prefers `CLAUDE_API_KEY`; if absent, it uses `NVIDIA_API_KEY`
+- `huggingface` uses `NVIDIA_API_KEY`
 
 ---
 
@@ -170,7 +179,7 @@ Submit a task to the AI orchestration service.
 |-------|------|----------|-------------|
 | task | string | Yes | Task type (e.g. `summarize`, `invoice_check`, `document_review`) |
 | text | string | Yes | Input text to process |
-| provider | string | No | `auto` (default), `gemini`, `claude`, or `huggingface` |
+| provider | string | No | `auto` (default), `mistral`, `gemini`, `openai`, `claude`, `huggingface` |
 
 **Response (200):**
 
@@ -261,6 +270,8 @@ Returns key-based provider/fallback status flags for the dashboard.
 
 Deletes rows with `status=error` from request history.
 
+Rate limit: 5 requests/minute.
+
 **Request body (optional):**
 
 ```json
@@ -333,9 +344,12 @@ Copy the example below and save it as `.env` in the project root:
 DATABASE_URL=sqlite:///aigateway.db
 
 # Optional — add real keys to actually call AI providers
-# CLAUDE_API_KEY=sk-ant-...
-# GEMINI_API_KEY=AIza...
-# HF_API_KEY=hf_...
+# NVIDIA_API_KEY=nvapi-...           # preferred unified fallback key
+# MISTRAL_API_KEY=nvapi-...          # backward-compatible fallback source
+# OPENAI_API_KEY=sk-...              # native OpenAI (optional)
+# CLAUDE_API_KEY=sk-ant-...          # native Claude (optional)
+# GEMINI_API_KEY=AIza...             # native Gemini (optional)
+# HF_API_KEY=hf_...                  # currently not required by provider implementation
 
 # Optional — protect the API with a key
 # API_KEY=my-secret-key
@@ -427,7 +441,7 @@ docker-compose down -v     # also delete the database volume
 | `ModuleNotFoundError: No module named 'psycopg2'` | Using PostgreSQL URL without the driver | Switch to `DATABASE_URL=sqlite:///aigateway.db` for local dev |
 | `OperationalError: could not connect to server` | PostgreSQL isn't running | Use SQLite (Option A) or start Docker (Option B) |
 | Port 5000 already in use | Another process on port 5000 | Change the port: `python run.py` → edit `run.py` and set `port=5001` |
-| `/ai/task` returns 503 | No API keys configured | Add at least one key (`GEMINI_API_KEY`, `CLAUDE_API_KEY`, or `HF_API_KEY`) to `.env` |
+| `/ai/task` returns 503 | No usable API keys configured | Set `NVIDIA_API_KEY` (recommended) or set native keys (`OPENAI_API_KEY`, `CLAUDE_API_KEY`, `GEMINI_API_KEY`) |
 | Windows — `Activate.ps1 cannot be loaded` | PowerShell execution policy | Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` first |
 
 ---
@@ -445,7 +459,7 @@ pytest tests/ -v
 Tests use **SQLite in-memory** and **mocked provider calls** — no real API keys or PostgreSQL needed.
 
 **Test coverage:**
-- `test_routes.py` — API endpoint validation (6 tests)
+- `test_routes.py` — API endpoint validation (8 tests)
 - `test_orchestrator.py` — Fallback, circuit breaker, error handling (4 tests)
 - `test_circuit_breaker.py` — State transitions CLOSED → OPEN → HALF_OPEN → CLOSED (6 tests)
 
@@ -496,7 +510,7 @@ Lint (flake8) → Test (pytest + PostgreSQL) → Build (Docker image)
 
 ### API Key Authentication
 
-Protected endpoints (`POST /ai/task`, `GET /history`) require an `X-API-Key` header when the `API_KEY` environment variable is set.
+Protected endpoints (`POST /ai/task`, `GET /history`, `GET /provider/status`, `POST /history/cleanup`) require an `X-API-Key` header when the `API_KEY` environment variable is set.
 
 ```bash
 curl -X POST https://ai-gateway-api-9sm2.onrender.com/ai/task \

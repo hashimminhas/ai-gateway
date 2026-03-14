@@ -309,3 +309,13 @@ All 15 steps finished. Service is live at:
   - `docker-compose.yml` adds `NVIDIA_API_KEY` and `OPENAI_API_KEY`
   - `.env.example` adds `NVIDIA_API_KEY` and `OPENAI_API_KEY`
 - Updated `README.md` with new endpoints and environment variable documentation
+
+### Post-Completion — README Sync with Current Code ✅
+- Refreshed provider architecture/routing in `README.md` to match current orchestrator order:
+  - `mistral -> gemini -> openai -> claude -> huggingface`
+- Clarified current behavior for provider selection:
+  - explicit provider selection tries only that provider (no silent fallback)
+- Updated API docs for supported provider values and cleanup endpoint details
+- Updated auth section to include `GET /provider/status` and `POST /history/cleanup`
+- Updated troubleshooting and local `.env` examples to recommend `NVIDIA_API_KEY`
+- Updated test coverage count in README (`test_routes.py`: 8 tests)
